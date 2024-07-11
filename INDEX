@@ -1,7 +1,7 @@
-offarray-package                    How to use the offarray package
-autoloop                            Loopless array calculations
-offarray                            Arrays with non-1 offsets
-partial_expand_dot_grid             Like expand.grid but a few rows at a time
-pmax                                Parallel min and max
-reclasso                            Prepare offarray code for RTMB etc
-subset.offarray                     Subsetting offarrays
+offarray-package                                How to use the offarray package
+autoloop                                        Loopless array calculations
+offarray                                        Arrays with non-1 offsets
+partial_expand_dot_grid                         Like expand.grid but a few rows at a time
+pmax                                            Parallel min and max
+reclasso                                        Prepare offarray code for RTMB etc
+subset.offarray                                 Subsetting offarrays
