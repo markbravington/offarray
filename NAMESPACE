@@ -1,0 +1,50 @@
+useDynLib( offarray, .registration=TRUE)
+export( "[.offarray",
+"[<-.offarray",
+"as.array.offarray",
+"as.data.frame.offarray",
+"autoloop",
+"dimrange",
+"dimseq",
+"firstel",
+"firstel<-",
+"lastel",
+"offarray",
+"offarray.data.frame",
+"offarray.default",
+"offarray.table",
+"partial_expand_dot_grid",
+"pmax",
+"pmin",
+"reclasso",
+"slindoff",
+"strguts.offarray",
+"subset.offarray",
+"sumover",
+"whichoff")
+import( utils, except=c("help",".DollarNames","?","prompt"))
+import( Rcpp)
+import( mvbutils)
+S3method( "[", "offarray")
+S3method( "[<-", "offarray")
+S3method( "Ops", "offarray")
+S3method( "aperm", "offarray")
+S3method( "as.array", "offarray")
+S3method( "as.data.frame", "offarray")
+S3method( "as.matrix", "offarray")
+S3method( "print", "offarray")
+S3method( "rev", "offarray")
+S3method( "subset", "offarray")
+S3method( "t", "offarray")
+S3method( "dim<-", "offarray")
+S3method( "dimnames<-", "offarray")
+S3method( "head", "offarray")
+S3method( "str", "offarray")
+S3method( "tail", "offarray")
+S3method( "offarray", "data.frame")
+S3method( "offarray", "default")
+S3method( "offarray", "table")
+S3method( "reclasso", "default")
+S3method( "slice_atts", "default")
+S3method( "slice_atts", "offarray")
+

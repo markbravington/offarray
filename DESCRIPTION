@@ -1,0 +1,14 @@
+Package: offarray
+Title: Arrays with non-1 offsets
+Description: Arrays with non-1 offsets
+Author: Mark V. Bravington <markb2@summerinsouth.net>
+Maintainer: Mark V. Bravington <markb2@summerinsouth.net>
+Depends: R (>= 4.3)
+Imports: utils, Rcpp (>= 0.12.11), mvbutils (>= 2.9)
+LinkingTo: Rcpp
+Suggests: knitr
+CommentedOutVignetteBuilder: knitr
+ByteCompile: yes
+License: GPL (>=2)
+Version: 2.0.43
+Collate: offarray.R Cloaders_offarray.R
