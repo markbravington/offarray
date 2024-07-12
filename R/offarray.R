@@ -338,7 +338,7 @@ function(
   .BLOCKSIZE= 3e3, 
   .REPORTSEC= 0
 ){
-## Will be RTMB-friendly... eventually
+## Now RTMB-friendly... I think...
 
   dots <- c( list( ...), indices)
   allargs <- c( dots, SUMOVER)

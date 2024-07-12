@@ -5,24 +5,26 @@
 \description{
 Suppose you basically want to write some for-loops to fill in an entire (off)array, and you could easily write the loops and the innermost expression in C. But you can't really write the loops in R{}, because they would take \emph{forever}, and you don't want to resort to C because it's a hideous PITA. Instead, you can do it all in R{} with one call to \code{autoloop}, which "does all the loops at once". You just need to say what the loop-indices are (they will also form the dimensions of the result), and what the expression(s)-to-evaluate are (i.e. the "meat" of the "for-loop sandwich"). You can also automatically sum over some indices that aren't needed in the final result. You can return several offarray variables from one call to \code{autoloop}.
 
-Thus \code{autoloop} lets you easily and quickly do e.g. generalized dot products, without writing for-loops or contorting yourself to somehow vectorize all the expressions in direct R{} terms (something that I find excruciatingly difficult); see \bold{Examples}, and the vignette "Fast loops with offarrays".
+Thus \code{autoloop} lets you easily and quickly do e.g. generalized dot products, without writing for-loops or contorting yourself to somehow vectorize all the expressions in direct R{} terms (something that I find excruciatingly difficult); see \bold{Examples}, and the vignette "Fast loops with offarrays". (For now, you have to do that with \code{RShowDoc("autoloop",package="offarray")}.
 
-\code{autoloop} is very fast, and also gives you nice informative error messages when you screw up--- e.g., what the offending index values are--- which you won't get with base-R. I strongly recommended using \code{autoloop} as much as possible to replace for-loops. However, you can't always avoid \emph{some} for-looping, and that's fine. For example, to code population-dynamics with an annual time step, see the EXAMPLES. There are also a few restrictions (e.g. no \code{if}, though you can use \code{ifelse}) and helpful tips on coding style (how to avoid \code{ifelse} ...), which I should note in a vignette.
+\code{autoloop} is fast, and also gives you nice informative error messages when you screw up--- e.g., what the offending index values are--- which you won't get with base-R. I strongly recommended using \code{autoloop} as much as possible to replace for-loops. However, you can't always avoid \emph{some} for-looping, and that's fine. One situation is population-dynamics with an annual time step, as per \bold{Examples}. The section \bold{Rules} belwo lists a few restrictions (e.g. no \code{if}, though you can use \code{ifelse}), and gives tips on coding style (how to avoid \code{ifelse} ...); see also the vignette mentioned above.
 
-The \code{SUMOVER} argument that lets you automatically "contract" the result(s) just before returning, by summing over certain loop variables (generalizing \code{rowSums} and \code{colSums}). This lets you can do a matrix-multiply in one (ugly) step:
+The \code{SUMOVER} argument that lets you automatically "contract" the result(s) just before returning, by summing over certain loop variables (generalizing \code{rowSums} and \code{colSums}). This lets you do a matrix-multiply in one step:
 
 \preformatted{
-  dot <- autoloop(
-    M1[I,J] * M2[J,K],
-    I=dimseq(M1)[[1]],
-    K=dimseq( M2)[[2]],
-    SUMOVER=list(
-    J=dimseq( M1)[[2]]))
+  # NB this uses base-R matrices, not offarrays; either would work
+  M1 <- matrix( 1:6, 2, 3)
+  M2 <- matrix( 10+1:12, 3, 4)
+  prod <- autoloop(
+    I=1:2, J=1:4,
+    SUMOVER=list( K=1:3),
+    M1[I,K] * M2[K,J]
+  ) # same as M1 \%*\% M2
 }
 
-You can also do a contraction manually in a second step, by calling \code{sumover()}, although that's less efficient; sometimes it's unavoidable, though, e.g. when you want the denominator for Bayes' theorem. See vignette.
+You can also do a contraction manually in a second step, by calling \code{sumover()}, although that's less efficient; sometimes it's unavoidable, though, e.g. when you want the denominator for Bayes' theorem. See (future) vignette.
 
-\code{autoloop} is designed for speed and for economy of memory use, especially when you're contracting over "temporary" indices. It does a whole bunch of calcuations with a single R{} operation in a vectorized way, but only in chunks of size \code{.BLOCKSIZE}. The latter's default should be OK, but you might be able to get a speed-up by tweaking it to your particular case.
+\code{autoloop} is designed for speed and for economy of memory use, especially when you're contracting over temporary indices. It does a whole bunch of calcuations with a single R{} operation in a vectorized way, but only in chunks of size \code{.BLOCKSIZE}. The latter's default should be OK, but you might be able to get a speed-up by tweaking it to your particular case.
 
 For convenience, if you are repeatedly using the same large set of indices in multiple \code{autoloop} calls, you may want to pre-assign them to a \code{list} called eg \code{all_my_indices} and use \code{autoloop( indices=all_my_indices, <expr>)}.
 \subsection{Rules}{
