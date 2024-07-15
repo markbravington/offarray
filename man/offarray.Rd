@@ -28,12 +28,18 @@ Things should "just work" as you expect. However, compared to base-R and to the 
 \itemize{
 \item For speedy loop operations on \code{offarray} objects, you should definitely use \code{\link{autoloop}} rather than writing nested for-loops; it's \emph{much} faster and \emph{no} harder.
 \item from v2.0 onwards, \code{offarray} and \code{\link{autoloop}} code \emph{should} be compatible with package \pkg{RTMB}, with one tiiiiny modification. You will need to load the package \pkg{offartmb}.
-\item Behind the scenes, each \code{offarray} has an attribute "offset", a vector which holds the lowest index value for that dimension, or NA if that dimension has non-NULL \code{dimnames}. So in the above case, the offset would be \code{c(4,NA)}. NA-offset dimensions work (almost) exactly like in normal R{} when it comes to subsetting; they start at index 1, and negative value means "drop that element", etc.
-\item You shouldn't need to access the offset directly, andbut there are helper routines to help you with relevant stuff. See \bold{Utility functions} below.
-\item To pass an \code{offarray} to some existing R{} array/matrix routine, you \emph{may} need to \code{unclass} it first (basically if that R{} code is gonna subset it explicitly), or just \code{c} it the dimensions are irrelevant. That depends on the other code, and it's up to you to figure out.
+\item To pass an \code{offarray} to some existing R{} array/matrix routine, you \emph{may} need to \code{as.array} it first to switch to 1-based indexing (basically if that R{} code is gonna subset it explicitly), or just \code{c} it the dimensions are irrelevant. That depends on the other code, and it's up to you to figure out.
 }
 
-Now we get into more detailed stuff
+Behind the scenes, each \code{offarray} has an attribute "offset", a vector which holds the lowest index value for that dimension. You shouldn't need to access the offset directly, andbut there are helper routines to help you with relevant stuff. See \bold{Utility functions} below.
+
+As in base-R, you can also use character subscripts in an \code{offarray}, for any dimension that has non-empty \code{dimnames}.
+
+\itemize{
+\item If you subscript a dimension-that-has-dimnames with a number (as opposed to a character), then it will behave just like a normal R{} dimension, with negative number meaning "drop this element" etc. (Internally, the offset for such a dimension is stored as NA. You can also set an NA offset for any dimension, to make it behave (almost) exactly like a regular R{} subscript; it's not quite the same as setting the offset to 1, as shown in \bold{Examples}.)
+}
+
+Now we get into more detailed stuff:
 
 \itemize{
 \item Negative offsets are interpreted just like positive ones, so \code{x[-1]} means "give me the minus-one-th element of \code{x}". (It's not that weird; there are plenty of algorithms where indices can be negative, e.g. Wynn's epsilon method which naturally start at index -1). In base-R, on the other hand, \code{x[-1]} means "discard the first element of \code{x}". To get the base-R behaviour in one specific dimension, you can set its offset to NA.
@@ -58,13 +64,13 @@ You can construct an \code{offarray} directly from numeric (or other atomic) val
 
 which means the first dimension ("X"), is numeric-indexed with offset 3, and the second ("Y") is character-indexed.
 
-If you just want a dimension to behave like base-R (ie starting at 1 but with negative subscripts meaning "drop"), but not to have \code{dimnames}, then the following will work (by setting the offset for that dimension to NA):
+If you just want a dimension to behave like base-R (ie starting at 1 but with negative subscripts meaning "drop"), but not to have \code{dimnames}, then the following will work (by magically setting the offset for that dimension to NA):
 
 \preformatted{
   test <- offarray( 1:6, dimseq=list( X=3:5, Y=character( 2)))
 }
 
-Instead of \code{dimseq}, you can specify \code{dim/first/last} directly; any 2 of the 3 should do, and they will be sanity-checked. However, if any dimension is supposed to be character-indexed, you'd also need to pass \code{dimnames=list(<something>)} too--- so, just using \code{dimseq=...} is probably easier.
+Instead of \code{dimseq}, you can specify \code{dim/first/last} directly; any 2 of the 3 should do, and they will be sanity-checked. However, if any dimension is supposed to be character-indexed, you'd also need to pass \code{dimnames=list(<something>)} too--- so, just using \code{dimseq=...} is usually easier.
 
 For a 1D offarray, you can use a vector \code{dimseq} instead of a list of length 1. For example:
 
@@ -74,9 +80,9 @@ For a 1D offarray, you can use a vector \code{dimseq} instead of a list of lengt
   veco <- offarray( runif( 4), dimseq=list( 0:3))
 }
 
-You can also convert directly to an \code{offarray} from a \code{table} (ie something returned by \code{table()}) or from a \code{data.frame}. Technically, those two cases are S3 methods for the generic "constructor" function \code{offarray()}. Note that \code{table} might not give you the full ranges you expect, if there are no observations in categories where you might expect some. The safest solution is to add the \code{dimseq} argument explicitly; see \bold{Examples}.
+To "deconstruct", \code{as.array} has a method for \code{offarray} objects. Unless \code{make_dimnames==FALSE}, it turns all the numeric dimensions with non-NA offsets into \emph{character} dimnames that incorporate the offset--- so you can see what the original indices were. I prefer this to \code{unclass} for technical reasons, but \code{unclass} should also work.
 
-To "deconstruct", \code{as.array} has a method for \code{offarray} objects. Unless \code{make_dimnames==FALSE}, it turns all the numeric dimensions with non-NA offsets into \emph{character} dimnames that incorporate the offset.
+You can also convert directly to an \code{offarray} from a \code{table} (ie something returned by \code{table()}) or from a \code{data.frame}. Technically, those two cases are S3 methods for the generic "constructor" function \code{offarray()}. Note that \code{table} might not give you the full ranges you expect, if there are no observations in categories where you might expect some. The safest solution is to add the \code{dimseq} argument explicitly; see \bold{Examples}.
 
 The almost-inverse to \code{offarray( <data.frame>)} is \code{as.data.frame} which has a method for \code{offarray} objects; see \bold{Examples}. Technically: the output is a \code{data.frame} with one column per dimension of the input, plus a column for the contents, which will be called "response" unless you set the \code{name_of_response} argument. The other columns will have names "D1", "D2", etc, unless either (i) the input has a \emph{named} \code{dimnames} attribute, in which the names will be used, or (ii) the argument "add_names" is set to a character vector naming the dimensions. If the input has any \code{dimnames}, then its non-NULL elements will be used in place of 1,2,3,... etc for the entries in the corresponding columns. Character \code{dimnames} are kept as \code{character} columns in the output, \emph{never} converted to horrible factors--- regardless of \code{stringsAsFactors}.
 
@@ -86,15 +92,16 @@ The almost-inverse to \code{offarray( <data.frame>)} is \code{as.data.frame} whi
   myoff <- offarray( ....., dimnames=list( SEX=c( 'F', 'M'), AGE=NULL))
 }
 
-the NULL signifying that Age is numeric. However, I'm not sure how well named-dimnames will propagate or behave in all conceivable operations on an \code{offarray}, so the \emph{safest} course is probably to not use them.
+the NULL signifying that Age is numeric. \code{\link{autoloop}} will always do this, and \code{\link{sumover}} expects names-of-dimnames. However, I'm not sure whether absolutely every operation on \code{offarray} object will propagate names-of-dimnames correctly.
 
 If you don't name the dimnames, then \code{offarray} will try to figure them out from any names supplied in the vector arguments \code{first}, \code{last}, and/or \code{dim}; it will also check that any such names are consistent with each other, and with names-of-dimnames if the latter is supplied. For example:
 
 \preformatted{
-  myoff <- offarray( ..., first=c( SEX=1, 0), last=c( 2, AGE=20), dimnames=list( c( 'F', 'M'), NULL)
+  myoff <- offarray( ..., first=c( SEX=1, 0), last=c( 2, AGE=20),
+      dimnames=list( c( 'F', 'M'), NULL)
 }
 
-will work, and will produce an \code{offarray} the names of whose dimnames are \code{SEX} and \code{AGE} respectively. But this next one won't work, because there's a name clash:
+will work, and will produce an \code{offarray} with names-of-dimnames \code{SEX} and \code{AGE} respectively. But this next one won't work, because there's a name clash:
 
 \preformatted{
   myoff <- offarray( 1:42, first=c( SEX=1, 0), last=c( GENDER=2, AGE=20), dimnames=list( c( 'F', 'M'), NULL))
@@ -103,7 +110,7 @@ will work, and will produce an \code{offarray} the names of whose dimnames are \
 Calling \code{dim} on an offarray will often return a \emph{named} vector, related to the previous paragraph. This has pros, eg being able to write \code{dim(myoff)["SEX"]} or \code{dimseq(x)$SEX}, but potentially also cons, eg due to R{}'s habit of augmenting names when things are joined via \code{c()}. Time will tell whether it was a wise decision.
 }
 \subsection{Utility functions}{
-\code{firstel} (and \code{firstel<-}), \code{lastel}, \code{dimrange}, and \code{dimseq} are convenience functions for getting the range of an array index, without you having to faff around with offsets directly. They work with regular arrays/matrices, as well as \code{offarray} objects. Note \code{dimseq(x)[[i]]} returns \code{seq_len(dim(x)[i]} if \code{dimnames(x)[i]} is NULL and \code{attr(x,"offset")[i]} is NA. Watch out if you're going to put the results back into another call to \code{offarray}--- see \code{\link{which}} and EXAMPLES. To set the offset manually, you can do eg \code{firstel(x,3)<-5} or \code{firstel(x)<-c(3,6)} (set both offsets of a 2D \code{offarray}) or \code{firstel(x,4)<-NA} (to set base-R-style subscripting for the 4th dimension). To set a non-NA offset for some dimension, there must be no \code{dimnames} for that dimension (since character-indexed dimensions must always have an NA offset), so eg \code{dimnames(x)[[3]]<-NULL;firstel(x,3)<-10} would be the safe if weird way.
+\code{firstel} (and \code{firstel<-}), \code{lastel}, \code{dimrange}, and \code{dimseq} are convenience functions for getting the range of an array index, without you having to faff around with offsets directly. They work with regular arrays/matrices, as well as \code{offarray} objects. Note \code{dimseq(x)[[i]]} returns \code{seq_len(dim(x)[i])} if \code{dimnames(x)[i]} is NULL and \code{attr(x,"offset")[i]} is NA. Watch out if you're going to put the results back into another call to \code{offarray}--- see \code{\link{which}} and EXAMPLES. To set the offset manually, you can do eg \code{firstel(x,3)<-5} or \code{firstel(x)<-c(3,6)} (set both offsets of a 2D \code{offarray}) or \code{firstel(x,4)<-NA} (to set base-R-style subscripting for the 4th dimension). To set a non-NA offset for some dimension, there must be no \code{dimnames} for that dimension (since character-indexed dimensions must always have an NA offset), so eg \code{dimnames(x)[[3]]<-NULL;firstel(x,3)<-10} would be the safe if weird way.
 
 \code{slindoff} is the analog of \code{slice.index} for offarrays, returning values in the "coordinate system" of the \code{offarray}. I deliberately haven't tried to make \code{slice.index} generic since--- as far as reasonably possible--- "standard" operations on offarrays, i.e. ops that don't need to know about offarray-ness, should just work.
 
