@@ -45,6 +45,8 @@ S3method( "offarray", "data.frame")
 S3method( "offarray", "default")
 S3method( "offarray", "table")
 S3method( "reclasso", "default")
+S3method( "reclasso", "list")
 S3method( "slice_atts", "default")
 S3method( "slice_atts", "offarray")
+S3method( "sumover", "default")
 

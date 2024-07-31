@@ -1088,7 +1088,7 @@ function( e1, e2){
   o2 <- !missing( e2) && inherits( e2, 'offarray')
   if( o1 && o2){
 stopifnot( identical( unname( dimseq( e1)), unname( dimseq( e2))))
-  } else { # one is an offarray
+  } else if( !missing( e2) && (.Generic %not.in% c( '-', '+'))){
 stopifnot( is.null( dim( e1)) || is.null( dim( e2)) || 
     identical( unname( dim( e1)), unname( dim( e2)),
     (length( e1) == length( e2)) || min( length( e1), length( e2))==1)
@@ -1238,6 +1238,18 @@ function( expr, by) UseMethod( 'reclasso', by)
 
 "reclasso.default" <-
 function( expr, by) eval.parent( expr)
+
+
+"reclasso.list" <-
+function( expr, by){ 
+## Orta be some way to use NextMethod to dispatch on by[[1]]...
+
+#  scatn( 'hello! reclasso.list: %s', paste0( .class2( by))); 
+#  .Class <<- structure( class( by[[1]]), previous='list'); # c( 'list', class( by[[1]])); 
+#  obj <- by[[1]]
+#  NextMethod( 'reclasso', obj)
+  getS3method( 'reclasso', class( by[[1]]))( expr, by)
+}
 
 
 "rev.offarray" <-
@@ -1702,6 +1714,7 @@ stop( domain=NA, call.=FALSE, sprintf(
   } else {
     res <- try( set_MATSUB( x, l, debug_MATSUB=TRUE), silent=TRUE)
     if( res %is.a% 'try-error'){
+      print( res)
 stop( domain=NA, call.=FALSE, sprintf( 
       'Mystery error for %s',
       xname))
@@ -1782,8 +1795,16 @@ function(
 
 
 "sumover" <-
+function( x, mm, drop=FALSE) UseMethod( 'sumover')
+
+
+"sumover.default" <-
 function( x, mm, drop=FALSE) {
-  # Also works on offarray objects, thx2 generic slice_atts
+# scatn( 'Hello! I am default with class %s', paste0( class( x)))
+
+  # This "default" method also works on offarray objects, thx2 generic slice_atts
+  # sumover() is generic, to allow offartmb:::sumover.advector()
+  # Not working yet, though!
 
   ndim <- length( dim( x))
 stopifnot( ndim>0)
