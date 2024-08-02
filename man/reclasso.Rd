@@ -22,6 +22,8 @@ If you are annoyed by having to wrap your code like that, you can abbreviate it 
 \subsection{Details}{
 The main reason for \code{reclasso} is that R{}'s multiple-dispatch rules for addition etc simply don't work right, unless you go to great lengths with S4. Which sounds like a lot of work for \emph{me}, and I'm not sure it's even guaranteed to work fully without hacking, since package \pkg{RTMB} is of necessity quite hacky itself. Instead, I have implemented my own versions of "+" etc which \emph{do} dispatch correctly, taking account of and preserving "offarray" and/or "advector" etc classes. So the trick is to replace calls to base-R "+" etc, with calls to my more culturally-attuned versions.
 
+[Note, primarily to my future self] There are tedious internal nuances with dispatching when the parameters are a \code{list} (which \code{RTMB} allows, basically unlisting them for you) and which method gets picked up. The bottom line is that it works, but e.g. quite why I had to define a \code{reclasso.numeric} instead of \code{reclasso.default} is a mystery to me. But ultimately I don't really care, and you shouldn't either.
+
 Oh, and the reasons that I don't just provide a replacement for \code{MakeADFun} that auto-does this, are:
 
 \itemize{

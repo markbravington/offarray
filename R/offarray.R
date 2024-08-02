@@ -1242,14 +1242,21 @@ function( expr, by) eval.parent( expr)
 
 "reclasso.list" <-
 function( expr, by){ 
-## Orta be some way to use NextMethod to dispatch on by[[1]]...
+# scatn( "Hello! by is a list")
 
-#  scatn( 'hello! reclasso.list: %s', paste0( .class2( by))); 
+#  Orta be some way to use NextMethod to dispatch on by[[1]]...
+#  But I can't see it...
 #  .Class <<- structure( class( by[[1]]), previous='list'); # c( 'list', class( by[[1]])); 
 #  obj <- by[[1]]
-#  NextMethod( 'reclasso', obj)
+#  NextMethod( 'reclasso', by[[1]]) # doesn't work
+
+# This works, tho mebbe it should specify envir
   getS3method( 'reclasso', class( by[[1]]))( expr, by)
 }
+
+
+"reclasso.numeric" <-
+function( expr, by) eval.parent( expr)
 
 
 "rev.offarray" <-
