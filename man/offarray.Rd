@@ -23,12 +23,12 @@ An \code{offarray} is an array where (some) indices may not start at 1. Easiest 
   # now e.g. dumbo[ 5, 'aleph'] will give 2
 }
 
-Things should "just work" as you expect. However, compared to base-R and to the \pkg{Oarray} package which inspired \code{offarray}, there are a few things that might trip you up. The comprehensive list below looks much worse than it actually is; after the first 5, you might do better to simply read the EXAMPLES.
+Things should "just work" as you expect. However, compared to base-R and to the \pkg{Oarray} package which inspired \code{offarray}, there are a few things that might trip you up. The comprehensive list below looks much worse than it actually is; after the first 3, you might do better to simply read the EXAMPLES.
 
 \itemize{
 \item For speedy loop operations on \code{offarray} objects, you should definitely use \code{\link{autoloop}} rather than writing nested for-loops; it's \emph{much} faster and \emph{no} harder.
-\item from v2.0 onwards, \code{offarray} and \code{\link{autoloop}} code \emph{should} be compatible with package \pkg{RTMB}, with one tiiiiny modification. You will need to load the package \pkg{offartmb}.
-\item To pass an \code{offarray} to some existing R{} array/matrix routine, you \emph{may} need to \code{as.array} it first to switch to 1-based indexing (basically if that R{} code is gonna subset it explicitly), or just \code{c} it the dimensions are irrelevant. That depends on the other code, and it's up to you to figure out.
+\item from v2.0 onwards, \code{offarray} and \code{\link{autoloop}} code \emph{should} be compatible with package \pkg{RTMB}, with one tiiiiny modification. You will also need to load the package \pkg{offartmb}.
+\item To pass an \code{offarray} to some existing R{} array/matrix routine, you \emph{may} need to \code{as.array} it first to switch to 1-based indexing (basically if that R{} code is gonna subset it explicitly), or just \code{c} it the dimensions are irrelevant. That depends on the other code, and it's up to you to figure out. (One example is \code{matplot}; another, which I might eventually try to fix, is \code{apply}, as per \bold{Examples}.)
 }
 
 Behind the scenes, each \code{offarray} has an attribute "offset", a vector which holds the lowest index value for that dimension. You shouldn't need to access the offset directly, andbut there are helper routines to help you with relevant stuff. See \bold{Utility functions} below.
@@ -54,6 +54,7 @@ Now we get into more detailed stuff:
 \item There are some weird subsetting options allowed in base-R, that produce IMO inconsistent and unuseful results. I have generally banned these in \code{offarray}, to protect you from yourself! One example is subset-values that are NA or 0 or out-of-range; in \code{offarray}, they produce errors. (Except, you can of course use 0 as a perfectly legimimate index provided that the corresponding offset is zero or negative.)
 \item If any subset is non-empty and zero-length, the return value is a zero-length vector of the same type as \code{x}, eg from \code{x[rep(F,length(x))]} or \code{x[integer(0)]}.
 \item Subset-replacement, eg \code{x[5:6,i2>0]}, follows the same rules, \emph{mutatis mutandum}.
+\item \code{apply} generally works, but if the result is 1D, its vector
 }
 \subsection{Constructing and deconstructing an offarray}{
 You can construct an \code{offarray} directly from numeric (or other atomic) values, much like you would a normal array. The easiest way is usually by setting the \code{dimseq} argument (which then bypasses all other arguments except the values \code{x}), like so:
@@ -290,6 +291,21 @@ dimrange( test)
 #  Y    1    2
 dimseq( test, 1)
 # [1] 3 4, 5
+## Collapsors: see also autoloop()
+# sumover() always returns an offarray...
+sumover( test, 'Y')
+sumover( test, 2)
+sumover( test, 2)[5] # fine
+# ... but apply() doesn't quite work
+apply( test, 1, sum) # NB index definition is oppposite for apply!
+# ... not actually an offarray
+try( apply( test, 1, sum)[5])
+# ... to apply() something other than sum() (for which, use sumover)
+# ... and to keep offarrayness, do this:
+ds <- dimseq( test)
+apptest <- apply( test, 1, sum)
+apptest <- offarray( apptest, dimseq=ds[ 1])
+## Converters
 flubbo <- table( X=c( 1, 1, 3), Y=c( 'A', 'B', 'A'))
 offarray( flubbo)
 ## That's OK: it figures out that X=2 is also wanted

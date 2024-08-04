@@ -243,7 +243,7 @@ function( a, perm, ...){
   oc <- oldClass( a)
   a <- NextMethod( a)
   attr( a, 'offset') <- offo[ perm]
-  class( a) <- oc
+  oldClass( a) <- oc
 return( a)
 }
 
