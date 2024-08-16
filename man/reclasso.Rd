@@ -43,11 +43,12 @@ So it's better for it to be \emph{your} responsibility to add \code{reclasso} ca
 ## then either of
 #  myfun <- function( p, otherpars) reclasso( by=p, \{<body of myfun\})
 #  myfun <- function( p, otherpars) \{<body>\} |> reclasso(by=p)
-reclasso( expr, by)
+reclasso( expr, by, ...)
 }
 \arguments{
 \item{ expr}{Code of your function}
 \item{ by}{What variable to look at, to decide whether \code{expr} needs to be pre-modified before evaluation. Expected use-case is for \code{by} to be a vector of parameters.}
+\item{ ...}{Possibly required by some methods}
 }
 \examples{
 \dontrun{

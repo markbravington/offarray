@@ -1,13 +1,14 @@
 \name{autoloop}
 \alias{autoloop}
 \alias{sumover}
+\alias{eval_autoloop_guts}
 \title{Loopless array calculations}
 \description{
 Suppose you basically want to write some for-loops to fill in an entire (off)array, and you could easily write the loops and the innermost expression in C. But you can't really write the loops in R{}, because they would take \emph{forever}, and you don't want to resort to C because it's a hideous PITA. Instead, you can do it all in R{} with one call to \code{autoloop}, which "does all the loops at once". You just need to say what the loop-indices are (they will also form the dimensions of the result), and what the expression(s)-to-evaluate are (i.e. the "meat" of the "for-loop sandwich"). You can also automatically sum over some indices that aren't needed in the final result. You can return several offarray variables from one call to \code{autoloop}.
 
 Thus \code{autoloop} lets you easily and quickly do e.g. generalized dot products, without writing for-loops or contorting yourself to somehow vectorize all the expressions in direct R{} terms (something that I find excruciatingly difficult); see \bold{Examples}, and the vignette "Fast loops with offarrays". (For now, you have to do that with \code{RShowDoc("autoloop",package="offarray")}.
 
-\code{autoloop} is fast, and also gives you nice informative error messages when you screw up--- e.g., what the offending index values are--- which you won't get with base-R. I strongly recommended using \code{autoloop} as much as possible to replace for-loops. However, you can't always avoid \emph{some} for-looping, and that's fine. One situation is population-dynamics with an annual time step, as per \bold{Examples}. The section \bold{Rules} belwo lists a few restrictions (e.g. no \code{if}, though you can use \code{ifelse}), and gives tips on coding style (how to avoid \code{ifelse} ...); see also the vignette mentioned above.
+\code{autoloop} is fast, and also (tries to...) give you nice informative error messages when you screw up--- e.g., what the offending index values are--- which you won't get with base-R. (There is also a debugging facility: see below.) I strongly recommended using \code{autoloop} as much as possible to replace for-loops, at least with \code{\link{offarray}}. However, you can't always avoid \emph{some} for-looping, and that's fine. One situation is population-dynamics with an annual time step, as per \bold{Examples}. The section \bold{Rules} belwo lists a few restrictions (e.g. no \code{if}, though you can use \code{ifelse}), and gives tips on coding style (how to avoid \code{ifelse} ...); see also the vignette mentioned above.
 
 The \code{SUMOVER} argument that lets you automatically "contract" the result(s) just before returning, by summing over certain loop variables (generalizing \code{rowSums} and \code{colSums}). This lets you do a matrix-multiply in one step:
 
@@ -27,6 +28,13 @@ You can also do a contraction manually in a second step, by calling \code{sumove
 \code{autoloop} is designed for speed and for economy of memory use, especially when you're contracting over temporary indices. It does a whole bunch of calcuations with a single R{} operation in a vectorized way, but only in chunks of size \code{.BLOCKSIZE}. The latter's default should be OK, but you might be able to get a speed-up by tweaking it to your particular case.
 
 For convenience, if you are repeatedly using the same large set of indices in multiple \code{autoloop} calls, you may want to pre-assign them to a \code{list} called eg \code{all_my_indices} and use \code{autoloop( indices=all_my_indices, <expr>)}.
+\subsection{Debugging}{
+The error messages from \code{autoloop} aren't always perfectly informative; I'm working on that, but sometimes you will just get something that is not obvious. So, what then?
+
+First, I always use my \code{debug} package to debug things, because it's Just Better. And, frankly, so should you... so the assumption here is that you are using it. Anyway, when you've gotten an puzzling situation inside a call to \code{autoloop}, it's not easy to figure out what's going on by simply doing \code{mtrace(autoloop)}; the execution of (a modified version of) \emph{your} code doesn't happen until deep inside the code of \code{autoloop} itself. To make things easier, do the following immediately before executing the offending \code{autoloop} call: \code{mtrace(eval_autoloop_guts)}. Then it will step (almost) directly into your code, doing a block of loop-indices at once. Note that your code will appear slightly modified (mainly for array accesses); that's deliberate. All your statements will (or should) return vectors, by design. Remember to do \code{mtrace(eval_autoloop_guts,F)} after you have come out.
+
+It's possible that the same technique will work with \code{browse} or other inferior debugging tools :)
+}
 \subsection{Rules}{
 What can you do/not-do in an \code{autoloop} expr? Well, you can think of each statement within your \code{expr} as an assignment operation in C, nested within for-loops. At the end of each evaulation of \code{expr}, each returned variable (or the very last assignment, if there is no explicit \code{return}) is stored into an array of the same name, at the element shown by the indices. Thus, this call in R{}:
 
@@ -106,6 +114,7 @@ autoloop(expr, ..., indices=list(), SUMOVER=list(),
   single_object= NA, offarray_wanted= TRUE,
   .BLOCKSIZE=3000, .REPORTSEC=0)
 sumover( x, mm, drop=FALSE)
+eval_autoloop_guts( expr, envir) ## NEVER call this yourself!!
 }
 \arguments{
 \item{ expr}{Expression to evaluate--- think of it as the body of a function whose arguments are the dotty-args. It should return either one vector argument, or a named list of vector arguments.}
@@ -119,6 +128,7 @@ sumover( x, mm, drop=FALSE)
 \item{ drop}{(\code{sumover}) as per standard R{} usage, but default is FALSE here because that's better. NB that \code{drop} will always preserve \code{offarray}-ness (unless \emph{all} dimensions are contracted), so the \code{dim} attribute will not necessarily disappear even if it "could".}
 \item{ .BLOCKSIZE}{how many "cases" (different "rows" aka different sets of values from the subscript ranges) to do at once. Avoids memory barfing. Too small (eg 1e3) seems to slow things down; too big could cause barfing. Default should be fine.}
 \item{ .REPORTSEC}{how many seconds to let pass before reporting on progress. 0 or silly value means don't report.}
+\item{ expr, envir}{not your business, since you won't be calling \code{eval_autoloop_guts} yourself...}
 }
 \value{
 \code{autoloop} returns one or more \code{\link{offarray}}s with dimensions ranging over the input subscripts (except the ones in \code{SUMOVER}). The result is always an \code{\link{offarray}} even if all first elements are 1. If \code{expr} returns a list (which must be named), then a list of \code{\link{offarray}}s with the same names will be returned; \code{extract.named} then conveniently creates all corresponding arrays in the caller's environment.

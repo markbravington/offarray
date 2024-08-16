@@ -387,7 +387,7 @@ function(
     switch <- c( 1L, attr( eg, 'switch'), length( eg[[1]])+1L) 
 
     # Gonna force a hashed env here for speed with big exprs; guesswork
-    outcomes <- try( eval( subex1, envir=egenvir), silent=TRUE)
+    outcomes <- try( eval_autoloop_guts( subex1, envir=egenvir), silent=TRUE)
     if( outcomes %is.a% 'try-error'){
       callinfo <- deparse1( sys.call()) # gotta do it here, before...
       errmsg <- handle_autoloop_error()
@@ -653,6 +653,10 @@ return( ds[[1]])
 return( ds)
   }
 }
+
+
+"eval_autoloop_guts" <-
+function( expr, envir) eval( expr, envir)
 
 
 "firstel" <-
@@ -1233,15 +1237,15 @@ function (x, ...) {
 
 
 "reclasso" <-
-function( expr, by) UseMethod( 'reclasso', by)
+function( expr, by, ...) UseMethod( 'reclasso', by)
 
 
 "reclasso.default" <-
-function( expr, by) eval.parent( expr)
+function( expr, by, ...) eval.parent( expr)
 
 
 "reclasso.list" <-
-function( expr, by){ 
+function( expr, by, ...){ 
 # scatn( "Hello! by is a list")
 
 #  Orta be some way to use NextMethod to dispatch on by[[1]]...
@@ -1251,12 +1255,12 @@ function( expr, by){
 #  NextMethod( 'reclasso', by[[1]]) # doesn't work
 
 # This works, tho mebbe it should specify envir
-  getS3method( 'reclasso', class( by[[1]]))( expr, by)
+  getS3method( 'reclasso', class( by[[1]]))( by=by, expr=substitute( expr), evalfr=parent.frame())
 }
 
 
 "reclasso.numeric" <-
-function( expr, by) eval.parent( expr)
+function( expr, by, evalfr=parent.frame()) eval( expr, evalfr)
 
 
 "rev.offarray" <-
