@@ -642,7 +642,7 @@ return( seq_along( x))
   if( is.null( ds)) {
     ds <- rep( list( NULL), length( dim( x)))
   }
-  for( iseq in which[ !lengths( ds)]){
+  for( iseq in which[ !lengths( ds[ which])]){
     ds[[ iseq]] <- seq.int( from=firstel( x, iseq), 
         length.out=dim( x)[ iseq])
   }
