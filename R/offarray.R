@@ -7,6 +7,14 @@ function( libname, pkgname) {
   e <- new.env( parent=baseenv())
   ns$special_stuff <- e
   e$casting_classes <- list()
+  
+  # Safety check for old R versions pre %||%:
+  if( !exists( '%||%', baseenv())){
+    orifnull <- function (x, y) if (is.null(x)) y else x
+    environment( orifnull) <- baseenv()
+    assign( '%||%', orifnull, ns)
+  }
+  
 
 ### Generic dot-onLoad for mvbutils-created packages c.2021
   ## This part should only kick in when debugging C code with VSCode--
@@ -638,19 +646,25 @@ return( seq_along( x))
     which <- seq_along( dim( x))
   }
 
-  ds <- dimnames( x)
-  if( is.null( ds)) {
-    ds <- rep( list( NULL), length( dim( x)))
+  ds <- dimnames( x) %||% rep( list( NULL), length( dim( x)))
+  if( is.numeric( which)){
+stopifnot( 
+      all( is.finite( which)), 
+      min( which) >= 1, 
+      max( which) <= length( dim( x)))
+  } else if( is.character( which)){
+stopifnot( all( which %in% names( ds)))
   }
+  
   for( iseq in which[ !lengths( ds[ which])]){
     ds[[ iseq]] <- seq.int( from=firstel( x, iseq), 
         length.out=dim( x)[ iseq])
   }
 
   if( (length( which)==1) && drop) {
-return( ds[[1]])
+return( ds[[ which]])
   } else {
-return( ds)
+return( ds[ which])
   }
 }
 

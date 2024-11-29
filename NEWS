@@ -5,4 +5,6 @@
 1.2.0: Change to subassignment, so that byte-compiler no longer has to be turned off. Also, new better autoloop. 
 
 2.0.10 Removed "turn-off-bc.r" demo. Should now be mostly compatible with 'RTMB', via the new 'offartmb' package and use of 'reclasso', 'REPORTO'. Comparison ops now keep offarrayness; single-arg 'whichoff' now works as expected. NOOFF/nooff syntax cleaned up. Many things sanitized & generally cleaned up. Cleanliness all round.
+
+2.0.68 Bugfix on dimseq( <>, which)
  
