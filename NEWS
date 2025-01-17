@@ -8,3 +8,4 @@
 
 2.0.68 Bugfix on dimseq( <>, which)
  
+2.0.70 Bugfix for offarray.table() that sometimes gave empty but non-NULL names(dimnames), leading to (at least) printing woes

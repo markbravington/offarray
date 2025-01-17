@@ -1040,7 +1040,8 @@ stop( "Char dimnames inconsistent...")
         last=sapply( out_dranges, max)))
     # ... unclass() to avoid problems with 'dimnames<-.offarray'
     
-    if( !is.null( namdim <- names( dnx))) {
+    namdim <- names( dnx) # bug fix for 2.0.70: could get non-NULL empty strings
+    if( !is.null( namdim) && !anyNA( namdim) && all( nzchar( namdim))) {
       dimnames( off) <- structure( rep( list( NULL), length( namdim)),
           names=namdim)
     }
@@ -1092,6 +1093,13 @@ warning( sprintf( "input being trimmed in dims (%s)",
   cc <- as.call( c( list( as.name( '['), as.name( 'off')), dranges))
   ccc <- substitute( xx <- x, list( xx=cc))
   eval( ccc)
+  
+  # Quick check for empty names:
+  namdim <- names( dimnames( off))
+  if( anyNA( namdim) || !all( nzchar( namdim))){
+    names( dimnames( off)) <- NULL
+  }
+  
 return( off)
 }
 
