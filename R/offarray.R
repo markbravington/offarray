@@ -1282,7 +1282,7 @@ function( expr, by, ...){
 
 
 "reclasso.numeric" <-
-function( expr, by, evalfr=parent.frame()) eval( expr, evalfr)
+function( expr, by, evalfr=parent.frame(), ...) eval( expr, evalfr)
 
 
 "rev.offarray" <-

@@ -10,5 +10,5 @@ Suggests: knitr
 CommentedOutVignetteBuilder: knitr
 ByteCompile: yes
 License: GPL (>=2)
-Version: 2.0.70
+Version: 2.0.71
 Collate: offarray.R Cloaders_offarray.R

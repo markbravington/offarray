@@ -128,7 +128,7 @@ eval_autoloop_guts( expr, envir) ## NEVER call this yourself!!
 \item{ drop}{(\code{sumover}) as per standard R{} usage, but default is FALSE here because that's better. NB that \code{drop} will always preserve \code{offarray}-ness (unless \emph{all} dimensions are contracted), so the \code{dim} attribute will not necessarily disappear even if it "could".}
 \item{ .BLOCKSIZE}{how many "cases" (different "rows" aka different sets of values from the subscript ranges) to do at once. Avoids memory barfing. Too small (eg 1e3) seems to slow things down; too big could cause barfing. Default should be fine.}
 \item{ .REPORTSEC}{how many seconds to let pass before reporting on progress. 0 or silly value means don't report.}
-\item{ expr, envir}{not your business, since you won't be calling \code{eval_autoloop_guts} yourself...}
+\item{ envir}{not your business, since you won't be calling \code{eval_autoloop_guts} yourself...}
 }
 \value{
 \code{autoloop} returns one or more \code{\link{offarray}}s with dimensions ranging over the input subscripts (except the ones in \code{SUMOVER}). The result is always an \code{\link{offarray}} even if all first elements are 1. If \code{expr} returns a list (which must be named), then a list of \code{\link{offarray}}s with the same names will be returned; \code{extract.named} then conveniently creates all corresponding arrays in the caller's environment.
