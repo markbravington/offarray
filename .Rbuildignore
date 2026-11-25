@@ -1,2 +1,2 @@
 \bR/funs[.]rda$
-(?i)\bvignettes/.*[.](?!(lyx|rmd|png|jpeg|jpg)$)[[:alnum:]]*$
+(?i)\bvignettes/.*[.](?!(lyx|rmd|rnw|pdf|png|jpeg|jpg)$)[[:alnum:]]*$

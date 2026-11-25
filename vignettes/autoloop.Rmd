@@ -34,8 +34,8 @@ great for applications like population dynamics: you can start your
 years at 2015, you can start your range of ages at 8, etc. Simpler,
 clearer, less buggity-bug-bug.
 
-New features in `offarray` v2.0.74 are: `autobayes` (to reduce 3 steps
-to 1), and auto-clamping of array indices inside `autoloop` via e.g.
+New features in `offarray` v2.1 are: `autobayes` (to reduce 3 steps to
+1), and auto-clamping of array indices inside `autoloop` via e.g.
 `x[~i+j]` to avoid OOB accesses (i.e., in this case to limit `i+j` to
 the range of allowed indices for the first dimension of `x`).
 

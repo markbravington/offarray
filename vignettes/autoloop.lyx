@@ -119,43 +119,6 @@ Mark Bravington;
 \end_layout
 
 \begin_layout Standard
-\begin_inset Branch NFN
-inverted 0
-status open
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-%
-\backslash
-VignetteEngine{knitr::knitr}
-\end_layout
-
-\begin_layout Plain Layout
-%
-\backslash
-VignetteEncoding{UTF-8}
-\end_layout
-
-\begin_layout Plain Layout
-%
-\backslash
-VignetteIndexEntry{autoloop}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
 \begin_inset ERT
 status open
 

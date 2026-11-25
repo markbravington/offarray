@@ -1,0 +1,8 @@
+\documentclass[a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\usepackage{pdfpages}
+%\VignetteIndexEntry{Fast loops with offarrays: PDF}
+\begin{document}
+\includepdf[pages=-, fitpaper=true]{autoloop_pdf_orig.pdf}
+\end{document}
