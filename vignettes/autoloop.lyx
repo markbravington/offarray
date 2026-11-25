@@ -1,0 +1,2341 @@
+#LyX 2.5 created this file. For more info see https://www.lyx.org/
+\lyxformat 643
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin D:/r2.0/offarray/vignettes/
+\textclass article
+\use_default_options true
+\begin_modules
+knitr
+\end_modules
+\maintain_unincluded_children no
+\language english
+\language_package default
+\inputencoding auto-legacy
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date true
+\justification default
+\crossref_package prettyref
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\backgroundcolor none
+\fontcolor none
+\notefontcolor lightgray
+\boxbgcolor red
+\table_border_color default
+\table_odd_row_color default
+\table_even_row_color default
+\table_alt_row_colors_start 1
+\branch NFN
+\selected 0
+\filename_suffix 0
+\color background background
+\end_branch
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2cm
+\topmargin 2cm
+\rightmargin 2cm
+\bottommargin 2cm
+\secnumdepth 5
+\tocdepth 5
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\docbook_mathml_version 0
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Fast loops with offarrays
+\end_layout
+
+\begin_layout Author
+Mark Bravington;
+ updated Nov 2026
+\end_layout
+
+\begin_layout Standard
+\begin_inset Branch NFN
+inverted 0
+status open
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+%
+\backslash
+VignetteEngine{knitr::knitr}
+\end_layout
+
+\begin_layout Plain Layout
+%
+\backslash
+VignetteEncoding{UTF-8}
+\end_layout
+
+\begin_layout Plain Layout
+%
+\backslash
+VignetteIndexEntry{autoloop}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<setup,cache=FALSE,
+ echo=TRUE,
+ include=FALSE>>=
+\end_layout
+
+\begin_layout Plain Layout
+#debug::debug_knitr( mtrace=FALSE)
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The 
+\family typewriter
+offarray
+\family default
+ package lets you work with arrays (and matrices and vectors) whose indexing can start wherever you like—
+ not just at 1 as in base-R,
+ nor just at 0 as in misbegotten languages like C.
+ This is great for applications like population dynamics:
+ you can start your years at 2015,
+ you can start your range of ages at 8,
+ etc.
+ Simpler,
+ clearer,
+ less buggity-bug-bug.
+\end_layout
+
+\begin_layout Standard
+New features in 
+\family typewriter
+offarray
+\family default
+ v2.1 are:
+ 
+\family typewriter
+autobayes
+\family default
+ (to reduce 3 steps to 1),
+ and auto-clamping of array indices inside 
+\family typewriter
+autoloop
+\family default
+ via e.g.
+ 
+\family typewriter
+x[~i+j]
+\family default
+ to avoid OOB accesses (i.e.,
+ in this case to limit 
+\family typewriter
+i+j
+\family default
+ to the range of allowed indices for the first dimension of 
+\family typewriter
+x
+\family default
+).
+\end_layout
+
+\begin_layout Standard
+Most R-ish things work as you would expect on 
+\family typewriter
+offarray
+\family default
+ objects.
+ There is documentation!
+ Try 
+\family typewriter
+?offarray
+\family default
+ (where exceptions are noted) and 
+\family typewriter
+utils::example('offarray','offarray')
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<intro,message=FALSE>>=
+\end_layout
+
+\begin_layout Plain Layout
+library( mvbutils)
+\end_layout
+
+\begin_layout Plain Layout
+library( offarray)
+\end_layout
+
+\begin_layout Plain Layout
+options( digits=4)
+\end_layout
+
+\begin_layout Plain Layout
+bloop <- offarray( 1:6,
+ dimseq=list( 11:12,
+ 21:23))
+\end_layout
+
+\begin_layout Plain Layout
+bloop + 3
+\end_layout
+
+\begin_layout Plain Layout
+bloop > 0
+\end_layout
+
+\begin_layout Plain Layout
+bloop[11,]
+\end_layout
+
+\begin_layout Plain Layout
+bloop[SLICE=11,] # drops the dimension (drop is off by default)
+\end_layout
+
+\begin_layout Plain Layout
+## utils::example( 'offarray',
+ 'offarray')...
+\end_layout
+
+\begin_layout Plain Layout
+## ...
+ or even try reading the documentation of '?offarray'...
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+You can also use 
+\family typewriter
+offarray
+\family default
+ with Kasper Kristensen's stupendous
+\family typewriter
+ RTMB
+\family default
+ package—
+ so you can get first derivatives in high-dimensional problems really fast,
+ and fit complicated statistical models with remarkable ease.
+ (Of course,
+ the whole point of 
+\family typewriter
+RTMB
+\family default
+ is that you can use "regular" R code.
+ But it still took some effort to get 
+\family typewriter
+offarray
+\family default
+ working with it.) 
+\series bold
+This is amazing!!!
+\end_layout
+
+\begin_layout Subsection
+Package 
+\family typewriter
+TMBO
+\end_layout
+
+\begin_layout Standard
+Note that you can also use 
+\family typewriter
+offarray
+\family default
+ with my package 
+\family typewriter
+TMBO
+\family default
+,
+ which deliberately lets you write flexible-offset TMB code (in C++,
+ of course;
+ that's good old "TMB",
+ not "
+\family typewriter
+RTMB
+\family default
+") that is fully 
+\family typewriter
+offarray
+\family default
+-compatible on the R side.
+ In marked contrast to "native TMB",
+ TMBO also gives very informative non-crashy error messages when you go Out-Of-Bounds (OOB) or commit other array-access stuff-ups,
+ which are by far the commonest problem.
+ However,
+ I suspect that TMBO —
+ which was a lot of work to write in late 2023,
+ and which I'm kinda proud of—
+ will be obsolete almost immediately,
+ because 
+\family typewriter
+RTMB
+\family default
+ and 
+\family typewriter
+offarray
+\family default
+ will just remove the need ever to go near C++ again 
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Though,
+ speed remains a 
+\emph on
+possible
+\emph default
+ concern with the 
+\family typewriter
+MakeADFun
+\family default
+ step in 
+\family typewriter
+RTMB
+\end_layout
+
+\end_inset
+
+.
+ And I will shed no tears whatsoever if that is the case.
+\end_layout
+
+\begin_layout Section
+Loops and speed
+\end_layout
+
+\begin_layout Standard
+When you need to to fill in an offarray one-element-at-a-time,
+ for-loops are going to be slow,
+ especially nested ones.
+ A staggering amount of argument-checking gets done behind the scenes in R
+\emph on
+ every time
+\emph default
+ a single offarray element is read;
+ and every time one element is changed,
+ R makes a "deep copy"
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+This deep-copy-on-subassignment seems to be unavoidable feature of R for any non-base-class object,
+ certainly in S3 and AFAIK also in S4.
+ Base-R arrays 
+\emph on
+can
+\emph default
+ do in-place modification,
+ but there's no safe general way in your own code for your own classes,
+ not even at the C level.
+ I doubt R-core has much interest in changing this,
+ although the word "might" has been bandied about for years.
+ Packages like 
+\family typewriter
+data.table
+\family default
+ get round it only by defining new assignment operators,
+ which I didn't want to do for humble 
+\family typewriter
+offarray
+\family default
+ objects.
+\end_layout
+
+\end_inset
+
+ of the entire offarray,
+ which gets very costly for big offarrays.
+ Even if you only intend to run your R code once for 
+\family typewriter
+RTMB::MakeADFun
+\family default
+,
+ normal for-loops can 
+\emph on
+still
+\emph default
+ be waaaaay too slow.
+ However,
+ you can 
+\emph on
+completely solve the problem
+\emph default
+ by using 
+\family typewriter
+autoloop()
+\family default
+ to do (almost) all the loops for you,
+ with 
+\emph on
+minimal
+\emph default
+ cost in comprehension.
+ Cost in simple cases is about 2-3 times slower than base-R,
+ ie negligible penalty.
+ Here's an example:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<speed>>=
+\end_layout
+
+\begin_layout Plain Layout
+N <- 20 # array has 8000 elements (smallish)
+\end_layout
+
+\begin_layout Plain Layout
+system.time({
+\end_layout
+
+\begin_layout Plain Layout
+  xR <- array( 0,
+ rep( N,
+ 3));
+\end_layout
+
+\begin_layout Plain Layout
+  for( i in 1:N) for( j in 1:N) for( k in 1:N) 
+\end_layout
+
+\begin_layout Plain Layout
+    xR[ i,j,k] <- 1/(i+2*j+3*k)
+\end_layout
+
+\begin_layout Plain Layout
+})
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+system.time({
+\end_layout
+
+\begin_layout Plain Layout
+  xO <- offarray(0,
+ dimseq=list( 1:N,
+ 1:N,
+ 1:N));
+\end_layout
+
+\begin_layout Plain Layout
+  for( i in 1:N) for( j in 1:N) for( k in 1:N) 
+\end_layout
+
+\begin_layout Plain Layout
+    xO[ i,j,k] <- 1/(i+2*j+3*k)
+\end_layout
+
+\begin_layout Plain Layout
+})
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+system.time( 
+\end_layout
+
+\begin_layout Plain Layout
+  xA <- autoloop( i=1:N,
+ j=1:N,
+ k=1:N,
+ 
+\end_layout
+
+\begin_layout Plain Layout
+    1/(i+2*j+3*k))
+\end_layout
+
+\begin_layout Plain Layout
+)
+\end_layout
+
+\begin_layout Plain Layout
+N <- 100 # try 400 for a real test;
+ then 8e6 elements and 512 MB
+\end_layout
+
+\begin_layout Plain Layout
+system.time( 
+\end_layout
+
+\begin_layout Plain Layout
+  xA <- autoloop( i=1:N,
+ j=1:N,
+ k=1:N,
+ 1/(i+2*j+3*k))
+\end_layout
+
+\begin_layout Plain Layout
+)
+\end_layout
+
+\begin_layout Plain Layout
+## Don't even TRY the direct loop over offarrays!!!
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+system.time({
+\end_layout
+
+\begin_layout Plain Layout
+  xR <- array( 0,
+ rep( N,
+ 3));
+\end_layout
+
+\begin_layout Plain Layout
+  for( i in 1:N) for( j in 1:N) for( k in 1:N) 
+\end_layout
+
+\begin_layout Plain Layout
+    xR[ i,j,k] <- 1/(i+2*j+3*k)
+\end_layout
+
+\begin_layout Plain Layout
+})
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Of course,
+ sometimes you can't entirely avoid for-loops.
+ A classic example is time-stepping thru population-dynamics calculations over the years.
+ That's fine;
+ by all means have one for-loop over years,
+ but just try to do all the work 
+\emph on
+within
+\emph default
+ each year via one-or-more 
+\family typewriter
+autoloop
+\family default
+ calls.
+ The Examples section in 
+\family typewriter
+?autoloop
+\family default
+ shows this.
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+autoloop 
+\family default
+will also do automatic "contractions" for you,
+ i.e.
+ accumulating a sum over an index which does not appear in the result.
+ Matrix-multiplication is the most obvious example.
+ Of course,
+ you would not normally use 
+\family typewriter
+autoloop
+\family default
+ just for that,
+ but here's how you could.
+ Notice also that 
+\family typewriter
+autoloop
+\family default
+ can use base-R arrays as well as offarrays :
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<matmul>>=
+\end_layout
+
+\begin_layout Plain Layout
+mm <- matrix( 1:6,
+ 2,
+ 3)
+\end_layout
+
+\begin_layout Plain Layout
+xx <- 4:6
+\end_layout
+
+\begin_layout Plain Layout
+mx <- autoloop( i=1:2,
+ SUMOVER=list( j=1:3),
+\end_layout
+
+\begin_layout Plain Layout
+  mm[i,j] * xx[ j]
+\end_layout
+
+\begin_layout Plain Layout
+)
+\end_layout
+
+\begin_layout Plain Layout
+mx
+\end_layout
+
+\begin_layout Plain Layout
+mm %*% xx
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Automatic contraction comes into its own with probability calculations in population dynamics,
+ and especially in close-kin mark-recapture,
+ when you might be dealing with a 7-dimensional set of indices that you want to sum down to "just" 5;
+ good luck concocting a base-R expression for that!
+\end_layout
+
+\begin_layout Standard
+You can have several statements within the body of an 
+\family typewriter
+autoloop
+\family default
+,
+ wrapped inside {} and separated by semicolons.
+ Some statements might compute ephemeral quantities that are needed only for computing other things,
+ and that don't need to be kept afterwards.
+ Other statements can produce named variables that you do keep at the end.
+ The examples later on show all that.
+\end_layout
+
+\begin_layout Subsection
+How does 
+\family typewriter
+autoloop
+\family default
+ work?
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+?autoloop
+\family default
+ 
+\end_layout
+
+\begin_layout Standard
+If that's too much effort to read:
+ 
+\family typewriter
+autoloop
+\family default
+ is like base-R 
+\family typewriter
+outer
+\family default
+,
+ but generalized and betterized.
+ Which should encourage you to read 
+\family typewriter
+?autoloop
+\family default
+...
+\end_layout
+
+\begin_layout Section
+Programming styles with 
+\family typewriter
+autoloop
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+autoloop
+\family default
+ auto-vectorizes your expression,
+ and then evaluates it over subsets of a few thousand index-combinations at a time.
+ Therefore,
+ what it runs is not 
+\emph on
+quite
+\emph default
+ what you wrote,
+ but if you stick to simple rules then you will never see the difference—
+ and if you don't,
+ it probably won't run at all.
+ Basically,
+ every statement within your 
+\family typewriter
+autoloop
+\family default
+ expression should result in a vector of the same length.
+ Even though array-accesses don't 
+\emph on
+look
+\emph default
+ like they will do that,
+ the magic of 
+\family typewriter
+autoloop
+\family default
+ ensures that they generally do
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Provided you stick to the rules.
+ Are the rules documented?
+ Not really,
+ though there are some in 
+\family typewriter
+?autoloop
+\family default
+.
+ Just stick to them anyway,
+ is my advice.
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Mathematical operations within an 
+\family typewriter
+autoloop
+\family default
+ expression generally work fine (though not matrix-multiply—
+ but that is simple to code manually within the expression).
+ The main "limitation" is that you can't use 
+\family typewriter
+if
+\family default
+-statements
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Nor 
+\family typewriter
+for/while/repeat/break/next
+\family default
+,
+ but 
+\family typewriter
+if
+\family default
+ is more significant here.
+\end_layout
+
+\end_inset
+
+ The R function 
+\family typewriter
+ifelse()
+\family default
+ can accomplish the same thing,
+ but be aware that 
+\family typewriter
+ifelse(cond,ex1,ex2)
+\family default
+ always evaluates 
+\emph on
+both
+\emph default
+ 
+\family typewriter
+ex1
+\family default
+ and 
+\family typewriter
+ex2
+\family default
+ whether 
+\family typewriter
+cond
+\family default
+ is TRUE or FALSE.
+ That can lead to OOB trouble if you naively try to access arrays,
+ which is usually what I use 
+\family typewriter
+autoloop
+\family default
+ for.
+ You can get around OOBs succinctly with 
+\begin_inset Quotes eld
+\end_inset
+
+autoclamping
+\begin_inset Quotes erd
+\end_inset
+
+ syntax such as 
+\family typewriter
+x[~y-b]
+\family default
+ (the 
+\begin_inset Quotes eld
+\end_inset
+
+
+\family typewriter
+~
+\family default
+
+\begin_inset Quotes erd
+\end_inset
+
+ means that the index will be clamped to lie within the allowable range).
+\end_layout
+
+\begin_layout Standard
+I'd like to put in a general Bayes-theorem example here,
+ but I'd have to think about it,
+ and who's got time for that?
+ So instead,
+ here's a no-thought example from Close-Kin Mark-Recapture.
+ If you are currently or imminently doing the CKMR workshop,
+ maybe defer reading this until Day 2!
+ If not,
+ you might not understand the background at all—
+ never mind :)
+\end_layout
+
+\begin_layout Standard
+For a range of "adult" sampling years Y and ages-at-sampling A,
+ and "juvenile" birth-years B,
+ we consider a comparison between a potential parent "adult" and potential offspring "juvenile".
+ The adult is lethally caught in year Ya at age Aa,
+ and the juvenile in Yj at Aj.
+ What is the demographic probability that the two will be a Parent-Offspring Pair,
+ aka "POP"?
+ In simple cases,
+ that probability is "just" the adult's expected fecundity in the birth-year Bj (which will depend on the adult's age at Bj,
+ plus whether the adult would actually be alive then),
+ divided by the total fecundity across 
+\emph on
+all
+\emph default
+ adults in year B,
+ which I've "pre-calculated" for simplicity.
+ Let's make all this sex-specific while we're at it,
+ because you always 
+\emph on
+should
+\emph default
+ in CKMR.
+ And we'll use 
+\family typewriter
+autoloop
+\family default
+.
+ Here's a naive example,
+ showing off multi-statement code while we're again at it:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<ifelse-naive>>=
+\end_layout
+
+\begin_layout Plain Layout
+  SEXES <- c( "Female",
+ "Male")
+\end_layout
+
+\begin_layout Plain Layout
+  adSAMPYEARS <- 1995:2000    # when our "adults" were sampled
+\end_layout
+
+\begin_layout Plain Layout
+  adAGES <- 6:9               # ...
+ of adults (ie potential parents)
+\end_layout
+
+\begin_layout Plain Layout
+  juSAMPYEARS <- 1990:1999    # when our potential offspring were sampled
+\end_layout
+
+\begin_layout Plain Layout
+  juAGES <- 1:3               # ...
+ and their range of ages at sampling
+\end_layout
+
+\begin_layout Plain Layout
+  juBYEARS <- (1990-3):(1999-1)  # implied range of juvenile birth-years
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+  # Any old values for fecundity-at-age...
+\end_layout
+
+\begin_layout Plain Layout
+  fec_SA <- autoloop( S=SEXES,
+ A=adAGES,
+ log( A))
+\end_layout
+
+\begin_layout Plain Layout
+  
+\end_layout
+
+\begin_layout Plain Layout
+  # Any old values for total fecundity over the years...
+ say from 1e6 typical age-7 adults
+\end_layout
+
+\begin_layout Plain Layout
+  totfec_SB <- autoloop( S=SEXES,
+ B=juBYEARS,
+ 1e6 * fec_SA[ S,
+ 7])
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+  try( Pr_POP_SYAYA <- autoloop( 
+\end_layout
+
+\begin_layout Plain Layout
+      Sa=SEXES,
+ Ya=adSAMPYEARS,
+ Aa=adAGES,
+ 
+\end_layout
+
+\begin_layout Plain Layout
+      Yj=juSAMPYEARS,
+ Aj=juAGES,
+ {  # curly required coz multiple statements
+\end_layout
+
+\begin_layout Plain Layout
+    Bj <- Yj - Aj;
+                  # birth of Our juvenile
+\end_layout
+
+\begin_layout Plain Layout
+    Aa_at_Bj <- Aa - (Ya - Bj);
+     # how old was Our adult then?
+\end_layout
+
+\begin_layout Plain Layout
+    Pr <- ifelse( Ya >= Bj,
+         # was adult still alive then?
+\end_layout
+
+\begin_layout Plain Layout
+      fec_SA[ Sa,
+ Aa_at_Bj] / totfec_SB[ Sa,
+ Bj],
+  # yes:
+ competing against other adults
+\end_layout
+
+\begin_layout Plain Layout
+      0)                            # no:
+ dead already
+\end_layout
+
+\begin_layout Plain Layout
+    return( Pr)
+\end_layout
+
+\begin_layout Plain Layout
+   }))
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Well,
+ that didn't work,
+ but at least the error message gives you a chance to figure out why.
+ The problem is with accessing 
+\family typewriter
+fec_SA[Sa,Aa_at_Bj]
+\family default
+ and clearly 
+\family typewriter
+Sa
+\family default
+ won't be the cause,
+ so it must be 
+\family typewriter
+Aa_at_Bj
+\family default
+ .
+ The error message doesn't show you 
+\family typewriter
+Aa_at_Bj
+\family default
+ directly
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+While producing this example,
+ I have started to think that the error message should include 
+\emph on
+all
+\emph default
+ available variables (including ones just calculated),
+ not just the indices,
+ because that might clarify things a lot!
+ Next version...
+\end_layout
+
+\end_inset
+
+,
+ because it's calculated only within the expression,
+ but we can see where it came from.
+ With 
+\family typewriter
+Ya=1995,Aa=9,Yj=1992,Aj=1
+\family default
+ we would have 
+\family typewriter
+Bj=1992-1=1991
+\family default
+ and 
+\family typewriter
+Ya-Bj=1995-1991=4
+\family default
+ and 
+\family typewriter
+Aa_at_Bj=9-4=5
+\family default
+.
+ But the range of adult ages,
+ 
+\family typewriter
+adAGES
+\family default
+,
+ which indexes 
+\family typewriter
+fec_SA
+\family default
+,
+ is only 6:9.
+ So the real problem is that our "adult" wasn't adult back then;
+ s/he was too young.
+ (The calculation could even have led to a negative age for the adult,
+ if the juvenile was born before s/he was!) While we're at it,
+ there is also the possibility of exceeding the maximum adult age—
+ it won't be the case in the samples,
+ because sampling kills the adults,
+ but if we compare an adult to a juvenile born 
+\emph on
+after
+\emph default
+ the adult capture,
+ then er 
+\emph on
+projected
+\emph default
+ age could be OOB.
+ Let's fix that quickly:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<ifelse-still-naive>>=
+\end_layout
+
+\begin_layout Plain Layout
+  try( Pr_POP_SYAYA <- autoloop( 
+\end_layout
+
+\begin_layout Plain Layout
+      Sa=SEXES,
+ Ya=adSAMPYEARS,
+ Aa=adAGES,
+ 
+\end_layout
+
+\begin_layout Plain Layout
+      Yj=juSAMPYEARS,
+ Aj=juAGES,
+ {
+\end_layout
+
+\begin_layout Plain Layout
+    Bj <- Yj - Aj;
+                  # birth of Our juvenile
+\end_layout
+
+\begin_layout Plain Layout
+    Aa_at_Bj <- Aa - (Ya - Bj);
+     # how old was Our adult then?
+\end_layout
+
+\begin_layout Plain Layout
+    Pr <- ifelse( 
+\end_layout
+
+\begin_layout Plain Layout
+        (Ya >= Bj) &                   # too dead;
+ note single ampersand coz vector
+\end_layout
+
+\begin_layout Plain Layout
+        (Aa_at_Bj >= min( adAGES)) &   # too young
+\end_layout
+
+\begin_layout Plain Layout
+        (Aa_at_Bj <= max( adAGES)),
+    # too old in future (and will actually be already dead!)
+\end_layout
+
+\begin_layout Plain Layout
+      fec_SA[ Sa,
+ Aa_at_Bj] / totfec_SB[ Sa,
+ Bj],
+  # yes:
+ competing
+\end_layout
+
+\begin_layout Plain Layout
+      0)                             # no:
+ not around
+\end_layout
+
+\begin_layout Plain Layout
+    return( Pr)
+\end_layout
+
+\begin_layout Plain Layout
+   }))
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Same goddamn problem.
+ The logic is fine now,
+ but the problem is that 
+\family typewriter
+ifelse
+\family default
+ still evaluates both the "yes" and "no" cases every time.
+ So what we have to do,
+ is to fix up the array access to 
+\emph on
+never
+\emph default
+ OOB,
+ by tweaking the index;
+ the 
+\family typewriter
+ifelse(...,0)
+\family default
+ will give the right answer overall in such cases anyway,
+ and we won't offend the OOB gods.
+ There are many ways to code that,
+ but the easiest is perhaps to pipe thru the 
+\family typewriter
+mvbutils::clamp
+\family default
+ function,
+ which restricts its input to a range:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<ifelse-wise>>=
+\end_layout
+
+\begin_layout Plain Layout
+  # No try() needed this time!
+\end_layout
+
+\begin_layout Plain Layout
+  Pr_POP_SYAYA <- autoloop( 
+\end_layout
+
+\begin_layout Plain Layout
+      Sa=SEXES,
+ Ya=adSAMPYEARS,
+ Aa=adAGES,
+ 
+\end_layout
+
+\begin_layout Plain Layout
+      Yj=juSAMPYEARS,
+ Aj=juAGES,
+ {
+\end_layout
+
+\begin_layout Plain Layout
+    Bj <- Yj - Aj;
+                  # birth of Our juvenile
+\end_layout
+
+\begin_layout Plain Layout
+    Aa_at_Bj <- Aa - (Ya - Bj);
+     # how old was Our adult then?
+\end_layout
+
+\begin_layout Plain Layout
+    Pr <- ifelse( 
+\end_layout
+
+\begin_layout Plain Layout
+        (Ya >= Bj) &                  # too dead
+\end_layout
+
+\begin_layout Plain Layout
+        (Aa_at_Bj >= min( adAGES)) &  # too young
+\end_layout
+
+\begin_layout Plain Layout
+        (Aa_at_Bj <= max( adAGES)),
+   # too old
+\end_layout
+
+\begin_layout Plain Layout
+      fec_SA[ Sa,
+ Aa_at_Bj |> clamp( adAGES)] /
+\end_layout
+
+\begin_layout Plain Layout
+        totfec_SB[ Sa,
+ Bj],
+          # yes,
+ competing
+\end_layout
+
+\begin_layout Plain Layout
+      0)                             # not around
+\end_layout
+
+\begin_layout Plain Layout
+    return( Pr)
+\end_layout
+
+\begin_layout Plain Layout
+   })
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Over time,
+ I have come to feel that 
+\family typewriter
+ifelse
+\family default
+ offers little by way of clarity and speed in contexts like this.
+ Instead,
+ I take advantage of "multiplication by 0" and R's automatic type-casting of logicals to numerics,
+ like so:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<ifelse-gone>>=
+\end_layout
+
+\begin_layout Plain Layout
+  Pr_POP_SYAYA <- autoloop( 
+\end_layout
+
+\begin_layout Plain Layout
+      Sa=SEXES,
+ Ya=adSAMPYEARS,
+ Aa=adAGES,
+ 
+\end_layout
+
+\begin_layout Plain Layout
+      Yj=juSAMPYEARS,
+ Aj=juAGES,
+ {
+\end_layout
+
+\begin_layout Plain Layout
+    Bj <- Yj - Aj;
+                  # birth of Our juvenile
+\end_layout
+
+\begin_layout Plain Layout
+    Aa_at_Bj <- Aa - (Ya - Bj);
+     # how old was Our adult then?
+\end_layout
+
+\begin_layout Plain Layout
+    Pr <-
+\end_layout
+
+\begin_layout Plain Layout
+      (Ya >= Bj) *                   # if FALSE,
+ entire expression will give 0
+\end_layout
+
+\begin_layout Plain Layout
+      (Aa_at_Bj >= min( adAGES)) *   # ditto
+\end_layout
+
+\begin_layout Plain Layout
+      (Aa_at_Bj <= max( adAGES)) *   # ditto
+\end_layout
+
+\begin_layout Plain Layout
+      fec_SA[ Sa,
+ Aa_at_Bj |> clamp( adAGES)] /
+\end_layout
+
+\begin_layout Plain Layout
+        totfec_SB[ Sa,
+ Bj]  
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+    return( Pr)
+\end_layout
+
+\begin_layout Plain Layout
+   })
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Lovely!
+ And while I'm still at it,
+ I'll illustrate another 
+\family typewriter
+autoloop
+\family default
+ feature.
+ First,
+ you can return multiple arguments—
+ they will each be an 
+\family typewriter
+offarray
+\family default
+ with the same dimensions,
+ and they'll will be put together into a named list.
+ Second,
+ you can use 
+\family typewriter
+mvbutils::extract.named
+\family default
+ to immediately turn those list elements into actual variables,
+ in the place where you do the call.
+ The demonstration will compute the expected number of kin-pairs by covariate category,
+ based on the relevant numbers of samples:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<twofer>>=
+\end_layout
+
+\begin_layout Plain Layout
+  # 
+\begin_inset Quotes eld
+\end_inset
+
+Sample sizes
+\begin_inset Quotes erd
+\end_inset
+
+ (equal for everything!)
+\end_layout
+
+\begin_layout Plain Layout
+  nsamp_ad <- offarray( 1000,
+ dimseq=list( S=SEXES,
+ Y=adSAMPYEARS,
+ A=adAGES))
+\end_layout
+
+\begin_layout Plain Layout
+  nsamp_ju <- offarray( 1000,
+ dimseq=list( Y=juSAMPYEARS,
+ A=juAGES))
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+  extract.named( autoloop( 
+\end_layout
+
+\begin_layout Plain Layout
+      Sa=SEXES,
+ Ya=adSAMPYEARS,
+ Aa=adAGES,
+ 
+\end_layout
+
+\begin_layout Plain Layout
+      Yj=juSAMPYEARS,
+ Aj=juAGES,
+ {
+\end_layout
+
+\begin_layout Plain Layout
+    Bj <- Yj - Aj;
+                  # birth of Our juvenile
+\end_layout
+
+\begin_layout Plain Layout
+    Aa_at_Bj <- Aa - (Ya - Bj);
+     # how old was Our adult then?
+\end_layout
+
+\begin_layout Plain Layout
+    Pr_POP_SYAYA <-
+\end_layout
+
+\begin_layout Plain Layout
+      (Ya >= Bj) *                   # if FALSE,
+ entire expression will give 0
+\end_layout
+
+\begin_layout Plain Layout
+      (Aa_at_Bj >= min( adAGES)) *   # ditto
+\end_layout
+
+\begin_layout Plain Layout
+      (Aa_at_Bj <= max( adAGES)) *   # ditto
+\end_layout
+
+\begin_layout Plain Layout
+      fec_SA[ Sa,
+ Aa_at_Bj |> clamp( adAGES)] /
+\end_layout
+
+\begin_layout Plain Layout
+        totfec_SB[ Sa,
+ Bj]  
+\end_layout
+
+\begin_layout Plain Layout
+    E_POP_SYAYA <- Pr_POP_SYAYA *    # NB no subscripts on Pr_POP_SYAYA;
+ 
+\end_layout
+
+\begin_layout Plain Layout
+                                     # it only gets offarrized on exit from autoloop()
+\end_layout
+
+\begin_layout Plain Layout
+      nsamp_ad[ Sa,
+ Ya,
+ Aa] * nsamp_ju[ Yj,
+ Aj]
+\end_layout
+
+\begin_layout Plain Layout
+    returnList( Pr_POP_SYAYA,
+ E_POP_SYAYA)
+\end_layout
+
+\begin_layout Plain Layout
+  }))
+\end_layout
+
+\begin_layout Plain Layout
+  dimseq( Pr_POP_SYAYA)
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Well,
+ that's pretty good,
+ but TBF the use of 
+\family typewriter
+clamp
+\family default
+ is ugly.
+ We can improve that (in v2.0.74+) with autoclamping via 
+\begin_inset Quotes eld
+\end_inset
+
+~
+\begin_inset Quotes erd
+\end_inset
+
+.
+ Back to the simpler case:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<autoclamp>>=
+\end_layout
+
+\begin_layout Plain Layout
+  Pr_POP_SYAYA <- autoloop( 
+\end_layout
+
+\begin_layout Plain Layout
+      Sa=SEXES,
+ Ya=adSAMPYEARS,
+ Aa=adAGES,
+ 
+\end_layout
+
+\begin_layout Plain Layout
+      Yj=juSAMPYEARS,
+ Aj=juAGES,
+ {
+\end_layout
+
+\begin_layout Plain Layout
+    Bj <- Yj - Aj;
+                  # birth of Our juvenile
+\end_layout
+
+\begin_layout Plain Layout
+    Aa_at_Bj <- Aa - (Ya - Bj);
+     # how old was Our adult then?
+\end_layout
+
+\begin_layout Plain Layout
+    Pr <-
+\end_layout
+
+\begin_layout Plain Layout
+      (Ya >= Bj) *                   # if FALSE,
+ entire expression will give 0
+\end_layout
+
+\begin_layout Plain Layout
+      (Aa_at_Bj >= min( adAGES)) *   # ditto
+\end_layout
+
+\begin_layout Plain Layout
+      (Aa_at_Bj <= max( adAGES)) *   # ditto
+\end_layout
+
+\begin_layout Plain Layout
+      fec_SA[ Sa,
+ ~Aa_at_Bj] /       # 
+\begin_inset Quotes eld
+\end_inset
+
+~
+\begin_inset Quotes erd
+\end_inset
+
+ clamps that index to allowable range
+\end_layout
+
+\begin_layout Plain Layout
+        totfec_SB[ Sa,
+ Bj]  
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+    return( Pr)
+\end_layout
+
+\begin_layout Plain Layout
+   })
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+And that's not bad,
+ but still a bit lengthy—
+ perhaps cozza the two explict tests on 
+\family typewriter
+Aa_at_Bj
+\family default
+.
+ The 
+\begin_inset Quotes eld
+\end_inset
+
+~
+\begin_inset Quotes erd
+\end_inset
+
+ prevents OOB lookups based on 
+\begin_inset Quotes eld
+\end_inset
+
+illegal
+\begin_inset Quotes erd
+\end_inset
+
+ 
+\family typewriter
+Aa_at_Bj
+\family default
+,
+ but we'd be happy with a zero in such cases.
+ A really fancy way to do that,
+ is to set up a zero-padded version of 
+\family typewriter
+fec_SA
+\family default
+ so that the autoclamp will automatically zero any OOB attempts.
+ That won't always be what you want
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+EG in real popdyn,
+ you might not want to zero-pad beyond the max age;
+ it might be a plus-group where you are fine just to use the same value for any greater age.
+\end_layout
+
+\end_inset
+
+,
+ but here it's quite nice coz the core statement becomes very succinct:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<zero-pad-autoclamp>>=
+\end_layout
+
+\begin_layout Plain Layout
+  fec_SA_zp <- autoloop( S=SEXES,
+ A=(min(adAGES)-1):(max(adAGES)+1),
+ 0)
+\end_layout
+
+\begin_layout Plain Layout
+  fec_SA_zp[,adAGES] <- fec_SA
+\end_layout
+
+\begin_layout Plain Layout
+  dimseq( fec_SA_zp)
+\end_layout
+
+\begin_layout Plain Layout
+  dimseq( fec_SA)
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+  Pr_POP_SYAYA <- autoloop( 
+\end_layout
+
+\begin_layout Plain Layout
+      Sa=SEXES,
+ Ya=adSAMPYEARS,
+ Aa=adAGES,
+ 
+\end_layout
+
+\begin_layout Plain Layout
+      Yj=juSAMPYEARS,
+ Aj=juAGES,
+ {
+\end_layout
+
+\begin_layout Plain Layout
+    Bj <- Yj - Aj;
+                  # birth of Our juvenile
+\end_layout
+
+\begin_layout Plain Layout
+    Aa_at_Bj <- Aa - (Ya - Bj);
+     # how old was Our adult then?
+\end_layout
+
+\begin_layout Plain Layout
+    Pr <-
+\end_layout
+
+\begin_layout Plain Layout
+      (Ya >= Bj) *                   # if FALSE,
+ entire expression will give 0
+\end_layout
+
+\begin_layout Plain Layout
+      fec_SA_zp[ Sa,
+ ~Aa_at_Bj] /       # 
+\begin_inset Quotes eld
+\end_inset
+
+~
+\begin_inset Quotes erd
+\end_inset
+
+ clamps that index to allowable range
+\end_layout
+
+\begin_layout Plain Layout
+        totfec_SB[ Sa,
+ Bj]  
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+    return( Pr)
+\end_layout
+
+\begin_layout Plain Layout
+   })
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Using 
+\family typewriter
+autobayes
+\end_layout
+
+\begin_layout Standard
+I often find myself using 
+\family typewriter
+autoloop
+\family default
+ for discrete Bayes calculations,
+ e.g.
+ to get 
+\begin_inset Formula 
+\begin{gather*}
+\mathbb{P}\left[X|Y,Z\right]=\frac{\mathbb{P}\left[X,Y|Z\right]}{\mathbb{P}\left[Y|Z\right]}
+\end{gather*}
+
+\end_inset
+
+where the denominator is given by summing the numerator over all values of 
+\begin_inset Formula $X$
+\end_inset
+
+.
+ With pre-v2.0.74 
+\family typewriter
+offarray
+\family default
+,
+ this requires 3 operations:
+\end_layout
+
+\begin_layout Enumerate
+calculate an 
+\begin_inset Quotes eld
+\end_inset
+
+unscaled
+\begin_inset Quotes erd
+\end_inset
+
+ joint distribution 
+\begin_inset Formula $\mathbb{P}\left[X,Y|Z\right]$
+\end_inset
+
+ via 
+\family typewriter
+autoloop()
+\end_layout
+
+\begin_layout Enumerate
+use 
+\family typewriter
+sumover(...,'X')
+\family default
+ to get 
+\begin_inset Formula $\mathbb{P}\left[Y,Z\right]$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+use 
+\family typewriter
+autoloop()
+\family default
+ again to divide the joint distribution by the denominator,
+ for each value of 
+\begin_inset Formula $Y$
+\end_inset
+
+ and 
+\begin_inset Formula $Z$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+This can now be done in one step just by calling 
+\family typewriter
+autobayes()
+\family default
+ instead of 
+\family typewriter
+autoloop()
+\family default
+ in step 1,
+ specifying 
+\family typewriter
+RESPONSES=list( X=<xrange>)
+\family default
+ and 
+\family typewriter
+CONDITIONERS=list(Y=<yrange>,Z=<zrange>)
+\family default
+.
+ In fact,
+ 
+\family typewriter
+autobayes()
+\family default
+ is convenient whenever you want to normalize something to sum-to-1;
+ see the Examples section of 
+\family typewriter
+?autoloop
+\family default
+.
+\end_layout
+
+\begin_layout Section
+With package 
+\family typewriter
+RTMB
+\end_layout
+
+\begin_layout Standard
+This isn't the right place to document the 
+\family typewriter
+RTMB
+\family default
+ link!
+ There should be a separate demo,
+ probably in package 
+\family typewriter
+offartmb
+\family default
+.
+ Anyway,
+ the general point is:
+ you can write a function using 
+\family typewriter
+offarray
+\family default
+ and 
+\family typewriter
+autoloop
+\family default
+,
+ and with minimal care you can evaluate it either directly in R,
+ or via 
+\family typewriter
+RTMB::MakeADFun
+\family default
+,
+ which creates a C-level version of your function 
+\emph on
+and 
+\emph default
+its derivative.
+ That means it will run really fast,
+ especially in the context of fitting to data.
+ Plus,
+ 
+\family typewriter
+RTMB
+\family default
+ can automatically do Laplace approximation to integrate out random effects,
+ etc etc.
+ WOW!
+\end_layout
+
+\begin_layout Standard
+What you need to do:
+\end_layout
+
+\begin_layout Itemize
+Load the package 
+\family typewriter
+offartmb
+\family default
+,
+ after
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+I have added a hack that tries to make the loading-order irrelevant.
+ "Tries".
+\end_layout
+
+\end_inset
+
+ loading 
+\family typewriter
+offarray
+\family default
+ and 
+\family typewriter
+RTMB
+\family default
+.
+\end_layout
+
+\begin_layout Itemize
+Wrap the body of your "objective function" in a call to 
+\family typewriter
+reclasso
+\family default
+,
+ as shown below.
+ This will have 
+\emph on
+no effect
+\emph default
+ if you are running the function directly in R,
+ but will also make it work nicely with 
+\family typewriter
+RTMB::MakeADFun
+\family default
+.
+ It won't work if you don't.
+\end_layout
+
+\begin_layout Itemize
+If you want to store variables calculated inside your objective function,
+ so they are available afterwards,
+ name them in a call to 
+\family typewriter
+REPORTO()
+\family default
+ somewhere (like the C macro 
+\family typewriter
+REPORT()
+\family default
+ in good old TMB).
+\end_layout
+
+\begin_layout Itemize
+Avoid comparison-operations in your code,
+ eg "==",
+ ">".
+ RTMB hates them.
+ You might be able to get away with them if they only apply to "data",
+ but in that case you are better off doing them beforehand and storing the results as additional data objects.
+\end_layout
+
+\begin_layout Itemize
+Good practice is to put the data needed by your function into a separate 
+\family typewriter
+environment
+\family default
+,
+ and attach that environment to your function.
+ The things from 
+\family typewriter
+REPORTO()
+\family default
+ will be stored there too.
+ This is a general principle well worth learning about in R—
+ not specific to 
+\family typewriter
+RTMB
+\family default
+,
+ but perhaps particularly relevant there.
+ The CKMR course examples all do it.
+\end_layout
+
+\begin_layout Standard
+An example,
+ but not one to run:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+<<rtmb>>=
+\end_layout
+
+\begin_layout Plain Layout
+if( FALSE){ # don't wanna run this!
+\end_layout
+
+\begin_layout Plain Layout
+  library( offartmb)
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+  myobjfun <- function( pars) reclasso( by=pars,
+ { # magic line
+\end_layout
+
+\begin_layout Plain Layout
+      Ey <- X %% pars
+\end_layout
+
+\begin_layout Plain Layout
+      resid <- y-Ey
+\end_layout
+
+\begin_layout Plain Layout
+      REPORTO( Ey,
+ resid) # two at once;
+ could separate
+\end_layout
+
+\begin_layout Plain Layout
+    return( sum( sqr( y-Ey)))
+\end_layout
+
+\begin_layout Plain Layout
+    })
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+  X <- cbind( 1,
+ 1:5) # regression
+\end_layout
+
+\begin_layout Plain Layout
+  y <- c( 5,
+ 3,
+ 4,
+ 1,
+ 2)
+\end_layout
+
+\begin_layout Plain Layout
+  pp0 <- 1:2
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+  # Base-R
+\end_layout
+
+\begin_layout Plain Layout
+  myobjfun( pp0)
+\end_layout
+
+\begin_layout Plain Layout
+  numvbderiv( myobjfun,
+ pp0) # numerical deriv (rough)
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+  # RTMB
+\end_layout
+
+\begin_layout Plain Layout
+  ooo <- RTMB::MakeADFun( myobjfun,
+ pp0)
+\end_layout
+
+\begin_layout Plain Layout
+  ooo$fn( pp0)
+\end_layout
+
+\begin_layout Plain Layout
+  ooo$gr( pp0)
+\end_layout
+
+\begin_layout Plain Layout
+  # ...
+ and they all lived happily ever after
+\end_layout
+
+\begin_layout Plain Layout
+}
+\end_layout
+
+\begin_layout Plain Layout
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As yet,
+ I 
+\emph on
+haven't
+\emph default
+ tested\SpecialChar breakableslash
+implemented the following:
+\end_layout
+
+\begin_layout Itemize
+several named parameter subsets (it's all just one vector at present,
+ to be unpacked inside your function—
+ coz that's what 
+\family typewriter
+optim/nlminb
+\family default
+ expects of a base-R function);
+ [Surely I must have tested this by now???]
+\end_layout
+
+\begin_layout Itemize
+To-do:
+ auto-choose a factorizable blocksize when the 
+\family typewriter
+SUMOVER 
+\family default
+arg is used,
+ to allow fastest 
+\family typewriter
+.colSums
+\family default
+ internally etc.
+ 
+\end_layout
+
+\begin_layout Itemize
+there's no simulation or OSA capability yet.
+\end_layout
+
+\end_body
+\end_document

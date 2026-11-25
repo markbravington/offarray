@@ -1,12 +1,17 @@
 \name{autoloop}
 \alias{autoloop}
 \alias{sumover}
+\alias{autobayes}
 \alias{eval_autoloop_guts}
 \title{Loopless array calculations}
 \description{
 Suppose you basically want to write some for-loops to fill in an entire (off)array, and you could easily write the loops and the innermost expression in C. But you can't really write the loops in R{}, because they would take \emph{forever}, and you don't want to resort to C because it's a hideous PITA. Instead, you can do it all in R{} with one call to \code{autoloop}, which "does all the loops at once". You just need to say what the loop-indices are (they will also form the dimensions of the result), and what the expression(s)-to-evaluate are (i.e. the "meat" of the "for-loop sandwich"). You can also automatically sum over some indices that aren't needed in the final result. You can return several offarray variables from one call to \code{autoloop}.
 
 Thus \code{autoloop} lets you easily and quickly do e.g. generalized dot products, without writing for-loops or contorting yourself to somehow vectorize all the expressions in direct R{} terms (something that I find excruciatingly difficult); see \bold{Examples}, and the vignette "Fast loops with offarrays". (For now, you have to do that with \code{RShowDoc("autoloop",package="offarray")}.
+
+From v2.1 onwards, you can precede an index with \code{~} to prevent OOB (Out-Of-Bounds) access, e.g. \code{x[~i+j,j]}, allowing succinct code without needing lots of \code{pmin/pmax} or \code{ifelse}. Note that "no crash" does not imply "desirable answer"; you may need to add extra conditions to deal with the reason for the OOB; see \bold{Examples} and the \code{autoclamping} argument.
+
+\code{autobayes} is a variant which automates a standard discrete Bayes' theorem calculation: calculate the numerator (joint distribution); sum over the responses for each category of the conditioning variables to get the denominator; divide the numerator category-wise by the denominator. This common pattern requires 3 \code{\link{offarray}} operations if done "manually" ( \code{autoloop}, \code{sumover}, \code{autoloop}); \code{autobayes} does all that with just 1 call, plus some (probably small) efficiency savings.
 
 \code{autoloop} is fast, and also (tries to...) give you nice informative error messages when you screw up--- e.g., what the offending index values are--- which you won't get with base-R. (There is also a debugging facility: see below.) I strongly recommended using \code{autoloop} as much as possible to replace for-loops, at least with \code{\link{offarray}}. However, you can't always avoid \emph{some} for-looping, and that's fine. One situation is population-dynamics with an annual time step, as per \bold{Examples}. The section \bold{Rules} belwo lists a few restrictions (e.g. no \code{if}, though you can use \code{ifelse}), and gives tips on coding style (how to avoid \code{ifelse} ...); see also the vignette mentioned above.
 
@@ -23,7 +28,7 @@ The \code{SUMOVER} argument that lets you automatically "contract" the result(s)
   ) # same as M1 \%*\% M2
 }
 
-You can also do a contraction manually in a second step, by calling \code{sumover()}, although that's less efficient; sometimes it's unavoidable, though, e.g. when you want the denominator for Bayes' theorem. See (future) vignette.
+You can also do a contraction manually in a second step, by calling \code{sumover()}, although that's less efficient; sometimes it's unavoidable, though, e.g. when you want the denominator for Bayes' theorem. See (future) vignette. It's fine to sum over several indices at once via a single \code{SUMOVER} argument, but if you are doing that, consider whether you can split the calculation into several steps, precalculating some intermediate quantities. This \emph{might} avoid some over-looping and gain you some speed (thanks Claude for pointing this out).
 
 \code{autoloop} is designed for speed and for economy of memory use, especially when you're contracting over temporary indices. It does a whole bunch of calcuations with a single R{} operation in a vectorized way, but only in chunks of size \code{.BLOCKSIZE}. The latter's default should be OK, but you might be able to get a speed-up by tweaking it to your particular case.
 
@@ -112,7 +117,15 @@ The trick for handling array lookups, is to replace \code{x[i,j]} with something
 ## )
 autoloop(expr, ..., indices=list(), SUMOVER=list(),
   single_object= NA, offarray_wanted= TRUE,
+  autoclamping= NA,
   .BLOCKSIZE=3000, .REPORTSEC=0)
+autobayes(
+  expr,
+  RESPONSES= list(), CONDITIONERS= list(), SUMOVER= list(),
+  offarray_wanted= TRUE, autoclamping= NA,
+  .BLOCKSIZE=formals( autoloop)$.BLOCKSIZE, # whatever autoloop says
+  .REPORTSEC=formals(autoloop)$.REPORTSEC   # whatever autoloop says
+)
 sumover( x, mm, drop=FALSE)
 eval_autoloop_guts( expr, envir) ## NEVER call this yourself!!
 }
@@ -120,7 +133,9 @@ eval_autoloop_guts( expr, envir) ## NEVER call this yourself!!
 \item{ expr}{Expression to evaluate--- think of it as the body of a function whose arguments are the dotty-args. It should return either one vector argument, or a named list of vector arguments.}
 \item{ ...}{Named subscript ranges, eg \code{A=1:5}, \code{B=c( "CAT", "DOG")}}
 \item{ indices}{Instead of/as well as \code{...}, you can supply a bunch of subscripts all-in-one, as a \code{list}. This is handy when you are repeatedly using similar \emph{sets} of indices; see \bold{Examples}.}
-\item{ SUMOVER}{named \code{list} of \emph{additional} subscript ranges, included in the loops for evaluation but summed-over before the result is returned. Don't duplicate them with \code{...}.}
+\item{ RESPONSES, CONDITIONERS}{These tell \code{autobayes} to calculate Pr[<RESPONSES>|<CONDITIONERS>], normalized to sum-to-1 over all values of \code{RESPONSES} for each "level" of \code{CONDITIONERS}. Both can be lists, of length 1 or more.}
+\item{ SUMOVER}{named \code{list} of \emph{additional} subscript ranges, included in the loops for evaluation but summed-over before the result is returned. Don't duplicate them with \code{...}. In \code{autobayes}, \code{SUMOVER} will be applied during the first calculation, i.e. of the joint distribution that form the numerator.}
+\item{ autoclamping}{if TRUE, or if NA (the default) and \code{expr} contains a formula operator \code{~}, then an index expression preceded by \code{~} will be clamped so it does not exceed its allowable range:e.g., \code{x[k,~i+j]} then . Note that no parentheses should be needed around the index expression, because \code{~} is a very low-precedence operator. Setting \code{autoclamping=FALSE} might be \emph{microscopically} faster if you're not autoclamping, but I wouldn't bother; the argument exists mainly for testing purposes.}
 \item{ single_object}{Normally you can ignore this, and just let \code{autoloop} deduce whether \code{expr} is returning just one (unnamed) object, or a (named) list containing several objects. However, if \code{expr} does return a single object, then it is always safe to set \code{single_object=TRUE}, and you should definitely do so if \code{expr} returns a single object that is (or might be) a named list.}
 \item{ offarray_wanted}{whether the returned object(s) should be \code{offarray}, or just regular array/matrix/vector(s).}
 \item{ x}{(\code{sumover}) an \code{offarray}, or at any rate something with named dimnames.}
@@ -131,86 +146,143 @@ eval_autoloop_guts( expr, envir) ## NEVER call this yourself!!
 \item{ envir}{not your business, since you won't be calling \code{eval_autoloop_guts} yourself...}
 }
 \value{
-\code{autoloop} returns one or more \code{\link{offarray}}s with dimensions ranging over the input subscripts (except the ones in \code{SUMOVER}). The result is always an \code{\link{offarray}} even if all first elements are 1. If \code{expr} returns a list (which must be named), then a list of \code{\link{offarray}}s with the same names will be returned; \code{extract.named} then conveniently creates all corresponding arrays in the caller's environment.
+\code{autoloop} and \code{autobayes} return one or more \code{\link{offarray}}s with dimensions ranging over the input subscripts (except the ones in \code{SUMOVER}). The result is always an \code{\link{offarray}} even if all first elements are 1. If \code{expr} returns a list (which must be named), then a list of \code{\link{offarray}}s with the same names will be returned; \code{extract.named} then conveniently creates all corresponding arrays in the caller's environment. For \code{autobayes}, the result will be normalized so that the sum across all \code{RESPONSES} is 1 for each combination of \code{CONDITIONERS}.
 \code{sumover} returns an \code{\link{offarray}} (or an \code{array} if the input was not an \code{\link{offarray}}), or a scalar iff \emph{all} dimensions are summed over.
 }
 \examples{
-library( mvbutils) # for extract.named, cq, etc; already imported
-# Normal offarray creation:
-directo <- offarray( 0, dimseq=list( A=1:3, B=cq( CAT, DOG)))
-# Or you can do it with autoloop!
-quicko <- autoloop( A=1:3, B=cq( CAT, DOG), 0)
-# Simplissimo (though using return(), which is often unnecessary):
-cicada <- autoloop( A=1:5, Y=1:3, \{
-  cohort <- Y-A # an intermediate statement
-return( cohort \%\% 17)
-\})
-# Offarray:
-cohort <- autoloop( A=0:3, Y=2000:2001, \{
-  Y-A
-\})
-# Two variables at once:
-extract.named( autoloop( A=0:2, Y=2000:2001, \{
-  cohort <- Y-A
-  weird <- Y \%\% A
-returnList( cohort, weird)
-\}))
-# 'indices' feature. Should be same as 'cohort' above.
-A_and_Y <- list( A=0:2, Y=2000:2001)
-alt_cohort <- autoloop( indices=A_and_Y, \{
-  Y-A
-\})
-# Lookup:
-B <- outer( 1:5, 1:3, '*')
-weird2 <- autoloop( A=2:4, Y=1:2, \{
-return( B[ A, Y]) # ie ALL combos of A & Y
-\})
-# Dot-product: C[i,k] := A[i,j] \%[j]\% B[j,k] in vecless
-A <- matrix( 1:12, 3, 4)
-B <- matrix( 1:8, 4, 2)
-A \%*\% B
-C <- autoloop( I=1:3, K=1:2, SUMOVER=list( J=1:4), \{
-  A[ I, J] * B[ J, K]
-\})
-# Errors
-yy <- offarray( 0, dimseq=list( 3:4, 5:6))
-try( autoloop( i=3:5, j=5:6, yy[ i,j])) # OOB
-try( autoloop( i=3:5, j=5:6, yy[ rep( i, 2), rep( j, 2)])) # weird length
-try( autoloop( i=3:5, j=5:6, yy[ i, rep( j, 3)])) # one weird length
-try( autoloop( i=3:4, j=5:6, yy[ i,j+'word'])) # WHAT were you THINKING?
-try( autoloop( i=3:4, j=5:6, yy[ i])) # wrong number of indices
-try( autoloop( i=3:4, j=5:6,
-    yy[ expression(),environment()])) # general craziness
-try( autoloop( i=3:4, j=5:6, meaning_of_life))
-# Old-style:
-CCold <- autoloop( I=1:3, J=1:4, K=1:2, \{
-  A[ I, J] * B[ J, K]
-\})
-Cold <- sumover( CCold, 'J')
-# autoloop() inside for-loop (eg for population dynamics)
-# Also, idiomatic
-YMIN <- 2010
-YMAX <- 2014
-YEARS <- 2010:2014
-AMIN <- 2
-APLUS <- 5
-AGES <- AMIN:APLUS
-N <- offarray( 0, dimseq=list( Y=YEARS, A=AGES))
-# Some random margins...
-N[ YMIN,] <- runif( length( AGES)) # !!!
-N[ , AMIN] <- runif( length( YEARS)) # !!!
-# ... and mortality rates...
-Z <- 0*N + runif( length( N)) # !!!
-# Fill in the pop dyn, each year depending on previous
-for( y in (YMIN+1) \%upto\% YMAX)\{
-  nextN <- autoloop( A=(AMIN+1) \%upto\% APLUS,
-    N[ y-1, A-1] * exp( -Z[ y-1, A-1]) +
-    # ... maybe add plus-group, or 0 if not
-    (A==APLUS) * (
-      N[ y-1, A] * exp( -Z[ y-1, A])
-    )
-  )
-  N[ y, (AMIN+1) \%upto\% APLUS] <- nextN
-\}
+#library( mvbutils) # for extract.named, cq, etc; already imported
+## Normal offarray creation:
+#directo <- offarray( 0, dimseq=list( A=1:3, B=cq( CAT, DOG)))
+## Or you can do it with autoloop!
+#quicko <- autoloop( A=1:3, B=cq( CAT, DOG), 0)
+## Simplissimo (though using return(), which is often unnecessary):
+#cicada <- autoloop( A=1:5, Y=1:3, \{
+#  cohort <- Y-A # an intermediate statement
+#return( cohort \%\% 17)
+#\})
+## Offarray:
+#cohort <- autoloop( A=0:3, Y=2000:2001, \{
+#  Y-A
+#\})
+## Two variables at once:
+#extract.named( autoloop( A=0:2, Y=2000:2001, \{
+#  cohort <- Y-A
+#  weird <- Y \%\% A
+#returnList( cohort, weird)
+#\}))
+## 'indices' feature. Should be same as 'cohort' above.
+#A_and_Y <- list( A=0:2, Y=2000:2001)
+#alt_cohort <- autoloop( indices=A_and_Y, \{
+#  Y-A
+#\})
+## Lookup:
+#B <- outer( 1:5, 1:3, '*')
+#weird2 <- autoloop( A=2:4, Y=1:2, \{
+#return( B[ A, Y]) # ie ALL combos of A & Y
+#\})
+## Dot-product: C[i,k] := A[i,j] \%[j]\% B[j,k] in vecless
+#A <- matrix( 1:12, 3, 4)
+#B <- matrix( 1:8, 4, 2)
+#A \%*\% B
+#C <- autoloop( I=1:3, K=1:2, SUMOVER=list( J=1:4), \{
+#  A[ I, J] * B[ J, K]
+#\})
+## Auto-clamping
+#x <- outer( 1:3, 4:5, '-') # standard array/matrix
+#autoloop( i=1:3, j=1:2, x[~i+j,~i-j]) # well, it does _something_...
+#autoloop( i=1:3, j=1:2,
+#  x[~i+j,~i-j] *
+#  (i+j<=3) * (i-j>=0) # to zero the OOBs
+#)
+## Errors
+#yy <- offarray( 1:4, dimseq=list( 3:4, 5:6))
+#try( autoloop( i=3:5, j=5:6, yy[ i,j])) # OOB
+#autoloop( i=3:5, j=5:6, yy[ ~i+1,j]) # NOT an error: autoclamping
+#try( autoloop( i=3:5, j=5:6, yy[ rep( i, 2), rep( j, 2)])) # weird length
+#try( autoloop( i=3:5, j=5:6, yy[ i, rep( j, 3)])) # one weird length
+#try( autoloop( i=3:4, j=5:6, yy[ i,j+'word'])) # WHAT were you THINKING?
+#try( autoloop( i=3:4, j=5:6, yy[ i])) # wrong number of indices
+#try( autoloop( i=3:4, j=5:6,
+#    yy[ expression(),environment()])) # general craziness
+#try( autoloop( i=3:4, j=5:6, meaning_of_life))
+## Old-style:
+#CCold <- autoloop( I=1:3, J=1:4, K=1:2, \{
+#  A[ I, J] * B[ J, K]
+#\})
+#Cold <- sumover( CCold, 'J')
+## autoloop() inside for-loop (eg for population dynamics)
+## Also, idiomatic
+#YMIN <- 2010
+#YMAX <- 2014
+#YEARS <- 2010:2014
+#AMIN <- 2
+#APLUS <- 5
+#AGES <- AMIN:APLUS
+#LCLASSES <- 1:8
+#N <- offarray( 0, dimseq=list( Y=YEARS, A=AGES))
+## Some random margins...
+#N[ YMIN,] <- runif( length( AGES)) # !!!
+#N[ , AMIN] <- runif( length( YEARS)) # !!!
+## ... and mortality rates...
+#Z <- 0*N + runif( length( N)) # !!!
+## Fill in the pop dyn, each year depending on previous
+#for( y in (YMIN+1) \%upto\% YMAX)\{
+#  nextN <- autoloop( A=(AMIN+1) \%upto\% APLUS,
+#    N[ y-1, A-1] * exp( -Z[ y-1, A-1]) +
+#    # ... maybe add plus-group, or 0 if not
+#    (A==APLUS) * (
+#      N[ y-1, A] * exp( -Z[ y-1, A])
+#    )
+#  )
+#  N[ y, (AMIN+1) \%upto\% APLUS] <- nextN
+#\}
+### Bayesian stuff: autobayes() first, then manual equiv
+## Most "simple Bayes" examples seem a bit crap to me: just binary outcomes
+## This isn't
+## "Length-at-age distribution: a silly one
+## autobayes first used just to get sum-to-one normalization.
+## Exact version would use diffs of cumul probs; too tedious to code
+#Pr_L_A <- autobayes(
+#    RESPONSES= list(
+#      Lc= LCLASSES),
+#    CONDITIONERS= list(
+#      A= AGES),\{
+#  dnorm( Lc, mean=A, sd=A)
+#\})
+## Conditional-Age-At-Length (CAAL) probs:
+## actual Bayes
+#Pr_A_LY <- autobayes(
+#    RESPONSES= list(
+#      A=AGES),
+#    CONDITIONERS= list(
+#      L= LCLASSES,
+#      Y= YEARS), \{
+#  N[Y,A] * Pr_L_A[ L, Y]
+#\})
+## Manual way without autobayes:
+#slow_Pr_L_A <- autoloop(
+#    Lc= LCLASSES,
+#    A= AGES,\{
+#  dnorm( Lc, mean=A, sd=A)
+#\})
+#denom_A <- sumover( slow_Pr_L_A, 'L')
+#slow_Pr_L_A <- autoloop(
+#    Lc= LCLASSES,
+#    A= AGES,\{
+#  slow_Pr_L_A[ L, A] / denom_A[ A]
+#\})
+#slow_Pr_A_LY <- autoloop(
+#    A=AGES),
+#    L= LCLASSES,
+#    Y= YEARS, \{
+#  N[Y,A] * Pr_L_A[ L, Y]
+#\})
+#denom_LY <- sumover( slow_Pr_A_LY, 'A')
+#slow_Pr_A_LY <- autoloop(
+#    A=AGES),
+#    L= LCLASSES,
+#    Y= YEARS, \{
+#  slow_Pr_A_LY[A,L,Y] / denom_LY[ L, Y]
+#\})
 }
 \keyword{misc}

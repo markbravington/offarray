@@ -1,0 +1,527 @@
+---
+title: Fast loops with offarrays
+author: Mark Bravington; updated Nov 2026
+output:
+  bookdown:::html_vignette2:
+  number_sections: yes
+
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Fast loops with offarrays}
+
+header-includes: >
+  \usepackage[T1]{fontenc}
+  \usepackage[latin9]{inputenc}
+  \usepackage{amsmath}
+  \usepackage{amssymb}
+  \usepackage[english]{babel}
+  \usepackage{flafter}
+---
+```{r setup,cache=FALSE, echo=TRUE, include=FALSE}
+#debug::debug_knitr( mtrace=FALSE)
+```
+```{r echo=FALSE,cache=FALSE}
+kable_autocap <- knitr::kable
+formals( kable_autocap)$caption <- quote( .GlobalEnv$'_next_caption')
+`_next_caption` <- ''
+```
+
+The `offarray` package lets you work with arrays (and matrices and
+vectors) whose indexing can start wherever you like--- not just at 1 as
+in base-R, nor just at 0 as in misbegotten languages like C. This is
+great for applications like population dynamics: you can start your
+years at 2015, you can start your range of ages at 8, etc. Simpler,
+clearer, less buggity-bug-bug.
+
+New features in `offarray` v2.0.74 are: `autobayes` (to reduce 3 steps
+to 1), and auto-clamping of array indices inside `autoloop` via e.g.
+`x[~i+j]` to avoid OOB accesses (i.e., in this case to limit `i+j` to
+the range of allowed indices for the first dimension of `x`).
+
+Most R-ish things work as you would expect on `offarray` objects. There
+is documentation! Try `?offarray` (where exceptions are noted) and
+`utils::example('offarray','offarray')`.
+
+```{r intro,message=FALSE}
+library( mvbutils)
+library( offarray)
+options( digits=4)
+bloop <- offarray( 1:6, dimseq=list( 11:12, 21:23))
+bloop + 3
+bloop > 0
+bloop[11,]
+bloop[SLICE=11,] # drops the dimension (drop is off by default)
+## utils::example( 'offarray', 'offarray')...
+## ... or even try reading the documentation of '?offarray'...
+```
+
+You can also use `offarray` with Kasper Kristensen's stupendous` RTMB`
+package--- so you can get first derivatives in high-dimensional problems
+really fast, and fit complicated statistical models with remarkable
+ease. (Of course, the whole point of `RTMB` is that you can use regular
+R code. But it still took some effort to get `offarray` working with
+it.) **This is amazing!!!**
+
+## Package `TMBO`
+
+Note that you can also use `offarray` with my package `TMBO`, which
+deliberately lets you write flexible-offset TMB code (in C++, of course;
+that's good old TMB, not `RTMB`) that is fully `offarray`-compatible on
+the R side. In marked contrast to native TMB, TMBO also gives very
+informative non-crashy error messages when you go Out-Of-Bounds (OOB) or
+commit other array-access stuff-ups, which are by far the commonest
+problem. However, I suspect that TMBO --- which was a lot of work to
+write in late 2023, and which I'm kinda proud of--- will be obsolete
+almost immediately, because `RTMB` and `offarray` will just remove the
+need ever to go near C++ again [^1]. And I will shed no tears whatsoever
+if that is the case.
+
+# Loops and speed
+
+When you need to to fill in an offarray one-element-at-a-time, for-loops
+are going to be slow, especially nested ones. A staggering amount of
+argument-checking gets done behind the scenes in R *every time* a single
+offarray element is read; and every time one element is changed, R makes
+a deep copy[^2] of the entire offarray, which gets very costly for big
+offarrays. Even if you only intend to run your R code once for
+`RTMB::MakeADFun`, normal for-loops can *still* be waaaaay too slow.
+However, you can *completely solve the problem* by using `autoloop()` to
+do (almost) all the loops for you, with *minimal* cost in comprehension.
+Cost in simple cases is about 2-3 times slower than base-R, ie
+negligible penalty. Here's an example:
+
+```{r speed}
+N <- 20 # array has 8000 elements (smallish)
+system.time({
+  xR <- array( 0, rep( N, 3));
+  for( i in 1:N) for( j in 1:N) for( k in 1:N) 
+    xR[ i,j,k] <- 1/(i+2*j+3*k)
+})
+
+system.time({
+  xO <- offarray(0, dimseq=list( 1:N, 1:N, 1:N));
+  for( i in 1:N) for( j in 1:N) for( k in 1:N) 
+    xO[ i,j,k] <- 1/(i+2*j+3*k)
+})
+
+system.time( 
+  xA <- autoloop( i=1:N, j=1:N, k=1:N, 
+    1/(i+2*j+3*k))
+)
+N <- 100 # try 400 for a real test; then 8e6 elements and 512 MB
+system.time( 
+  xA <- autoloop( i=1:N, j=1:N, k=1:N, 1/(i+2*j+3*k))
+)
+## Don't even TRY the direct loop over offarrays!!!
+
+system.time({
+  xR <- array( 0, rep( N, 3));
+  for( i in 1:N) for( j in 1:N) for( k in 1:N) 
+    xR[ i,j,k] <- 1/(i+2*j+3*k)
+})
+```
+
+Of course, sometimes you can't entirely avoid for-loops. A classic
+example is time-stepping thru population-dynamics calculations over the
+years. That's fine; by all means have one for-loop over years, but just
+try to do all the work *within* each year via one-or-more `autoloop`
+calls. The Examples section in `?autoloop` shows this.
+
+`autoloop `will also do automatic contractions for you, i.e.
+accumulating a sum over an index which does not appear in the result.
+Matrix-multiplication is the most obvious example. Of course, you would
+not normally use `autoloop` just for that, but here's how you could.
+Notice also that `autoloop` can use base-R arrays as well as offarrays :
+
+```{r matmul}
+mm <- matrix( 1:6, 2, 3)
+xx <- 4:6
+mx <- autoloop( i=1:2, SUMOVER=list( j=1:3),
+  mm[i,j] * xx[ j]
+)
+mx
+mm %*% xx
+```
+
+Automatic contraction comes into its own with probability calculations
+in population dynamics, and especially in close-kin mark-recapture, when
+you might be dealing with a 7-dimensional set of indices that you want
+to sum down to just 5; good luck concocting a base-R expression for
+that!
+
+You can have several statements within the body of an `autoloop`,
+wrapped inside {} and separated by semicolons. Some statements might
+compute ephemeral quantities that are needed only for computing other
+things, and that don't need to be kept afterwards. Other statements can
+produce named variables that you do keep at the end. The examples later
+on show all that.
+
+## How does `autoloop` work?
+
+`?autoloop`
+
+If that's too much effort to read: `autoloop` is like base-R `outer`,
+but generalized and betterized. Which should encourage you to read
+`?autoloop`\...
+
+# Programming styles with `autoloop`
+
+`autoloop` auto-vectorizes your expression, and then evaluates it over
+subsets of a few thousand index-combinations at a time. Therefore, what
+it runs is not *quite* what you wrote, but if you stick to simple rules
+then you will never see the difference--- and if you don't, it probably
+won't run at all. Basically, every statement within your `autoloop`
+expression should result in a vector of the same length. Even though
+array-accesses don't *look* like they will do that, the magic of
+`autoloop` ensures that they generally do[^3].
+
+Mathematical operations within an `autoloop` expression generally work
+fine (though not matrix-multiply--- but that is simple to code manually
+within the expression). The main limitation is that you can't use
+`if`-statements[^4] The R function `ifelse()` can accomplish the same
+thing, but be aware that `ifelse(cond,ex1,ex2)` always evaluates *both*
+`ex1` and `ex2` whether `cond` is TRUE or FALSE. That can lead to OOB
+trouble if you naively try to access arrays, which is usually what I use
+`autoloop` for. You can get around OOBs succinctly with "autoclamping"
+syntax such as `x[~y-b]` (the "`~`" means that the index will be clamped
+to lie within the allowable range).
+
+I'd like to put in a general Bayes-theorem example here, but I'd have to
+think about it, and who's got time for that? So instead, here's a
+no-thought example from Close-Kin Mark-Recapture. If you are currently
+or imminently doing the CKMR workshop, maybe defer reading this until
+Day 2! If not, you might not understand the background at all--- never
+mind :)
+
+For a range of adult sampling years Y and ages-at-sampling A, and
+juvenile birth-years B, we consider a comparison between a potential
+parent adult and potential offspring juvenile. The adult is lethally
+caught in year Ya at age Aa, and the juvenile in Yj at Aj. What is the
+demographic probability that the two will be a Parent-Offspring Pair,
+aka POP? In simple cases, that probability is just the adult's expected
+fecundity in the birth-year Bj (which will depend on the adult's age at
+Bj, plus whether the adult would actually be alive then), divided by the
+total fecundity across *all* adults in year B, which I've pre-calculated
+for simplicity. Let's make all this sex-specific while we're at it,
+because you always *should* in CKMR. And we'll use `autoloop`. Here's a
+naive example, showing off multi-statement code while we're again at it:
+
+```{r ifelse-naive}
+  SEXES <- c( "Female", "Male")
+  adSAMPYEARS <- 1995:2000    # when our "adults" were sampled
+  adAGES <- 6:9               # ... of adults (ie potential parents)
+  juSAMPYEARS <- 1990:1999    # when our potential offspring were sampled
+  juAGES <- 1:3               # ... and their range of ages at sampling
+  juBYEARS <- (1990-3):(1999-1)  # implied range of juvenile birth-years
+
+  # Any old values for fecundity-at-age...
+  fec_SA <- autoloop( S=SEXES, A=adAGES, log( A))
+  
+  # Any old values for total fecundity over the years... say from 1e6 typical age-7 adults
+  totfec_SB <- autoloop( S=SEXES, B=juBYEARS, 1e6 * fec_SA[ S, 7])
+
+  try( Pr_POP_SYAYA <- autoloop( 
+      Sa=SEXES, Ya=adSAMPYEARS, Aa=adAGES, 
+      Yj=juSAMPYEARS, Aj=juAGES, {  # curly required coz multiple statements
+    Bj <- Yj - Aj;                  # birth of Our juvenile
+    Aa_at_Bj <- Aa - (Ya - Bj);     # how old was Our adult then?
+    Pr <- ifelse( Ya >= Bj,         # was adult still alive then?
+      fec_SA[ Sa, Aa_at_Bj] / totfec_SB[ Sa, Bj],  # yes: competing against other adults
+      0)                            # no: dead already
+    return( Pr)
+   }))
+```
+
+Well, that didn't work, but at least the error message gives you a
+chance to figure out why. The problem is with accessing
+`fec_SA[Sa,Aa_at_Bj]` and clearly `Sa` won't be the cause, so it must be
+`Aa_at_Bj` . The error message doesn't show you `Aa_at_Bj` directly[^5],
+because it's calculated only within the expression, but we can see where
+it came from. With `Ya=1995,Aa=9,Yj=1992,Aj=1` we would have
+`Bj=1992-1=1991` and `Ya-Bj=1995-1991=4` and `Aa_at_Bj=9-4=5`. But the
+range of adult ages, `adAGES`, which indexes `fec_SA`, is only 6:9. So
+the real problem is that our adult wasn't adult back then; s/he was too
+young. (The calculation could even have led to a negative age for the
+adult, if the juvenile was born before s/he was!) While we're at it,
+there is also the possibility of exceeding the maximum adult age--- it
+won't be the case in the samples, because sampling kills the adults, but
+if we compare an adult to a juvenile born *after* the adult capture,
+then er *projected* age could be OOB. Let's fix that quickly:
+
+```{r ifelse-still-naive}
+  try( Pr_POP_SYAYA <- autoloop( 
+      Sa=SEXES, Ya=adSAMPYEARS, Aa=adAGES, 
+      Yj=juSAMPYEARS, Aj=juAGES, {
+    Bj <- Yj - Aj;                  # birth of Our juvenile
+    Aa_at_Bj <- Aa - (Ya - Bj);     # how old was Our adult then?
+    Pr <- ifelse( 
+        (Ya >= Bj) &                   # too dead; note single ampersand coz vector
+        (Aa_at_Bj >= min( adAGES)) &   # too young
+        (Aa_at_Bj <= max( adAGES)),    # too old in future (and will actually be already dead!)
+      fec_SA[ Sa, Aa_at_Bj] / totfec_SB[ Sa, Bj],  # yes: competing
+      0)                             # no: not around
+    return( Pr)
+   }))
+```
+
+Same goddamn problem. The logic is fine now, but the problem is that
+`ifelse` still evaluates both the yes and no cases every time. So what
+we have to do, is to fix up the array access to *never* OOB, by tweaking
+the index; the `ifelse(...,0)` will give the right answer overall in
+such cases anyway, and we won't offend the OOB gods. There are many ways
+to code that, but the easiest is perhaps to pipe thru the
+`mvbutils::clamp` function, which restricts its input to a range:
+
+```{r ifelse-wise}
+  # No try() needed this time!
+  Pr_POP_SYAYA <- autoloop( 
+      Sa=SEXES, Ya=adSAMPYEARS, Aa=adAGES, 
+      Yj=juSAMPYEARS, Aj=juAGES, {
+    Bj <- Yj - Aj;                  # birth of Our juvenile
+    Aa_at_Bj <- Aa - (Ya - Bj);     # how old was Our adult then?
+    Pr <- ifelse( 
+        (Ya >= Bj) &                  # too dead
+        (Aa_at_Bj >= min( adAGES)) &  # too young
+        (Aa_at_Bj <= max( adAGES)),   # too old
+      fec_SA[ Sa, Aa_at_Bj |> clamp( adAGES)] /
+        totfec_SB[ Sa, Bj],          # yes, competing
+      0)                             # not around
+    return( Pr)
+   })
+```
+
+Over time, I have come to feel that `ifelse` offers little by way of
+clarity and speed in contexts like this. Instead, I take advantage of
+multiplication by 0 and R's automatic type-casting of logicals to
+numerics, like so:
+
+```{r ifelse-gone}
+  Pr_POP_SYAYA <- autoloop( 
+      Sa=SEXES, Ya=adSAMPYEARS, Aa=adAGES, 
+      Yj=juSAMPYEARS, Aj=juAGES, {
+    Bj <- Yj - Aj;                  # birth of Our juvenile
+    Aa_at_Bj <- Aa - (Ya - Bj);     # how old was Our adult then?
+    Pr <-
+      (Ya >= Bj) *                   # if FALSE, entire expression will give 0
+      (Aa_at_Bj >= min( adAGES)) *   # ditto
+      (Aa_at_Bj <= max( adAGES)) *   # ditto
+      fec_SA[ Sa, Aa_at_Bj |> clamp( adAGES)] /
+        totfec_SB[ Sa, Bj]  
+
+    return( Pr)
+   })
+```
+
+Lovely! And while I'm still at it, I'll illustrate another `autoloop`
+feature. First, you can return multiple arguments--- they will each be
+an `offarray` with the same dimensions, and they'll will be put together
+into a named list. Second, you can use `mvbutils::extract.named` to
+immediately turn those list elements into actual variables, in the place
+where you do the call. The demonstration will compute the expected
+number of kin-pairs by covariate category, based on the relevant numbers
+of samples:
+
+```{r twofer}
+  # "Sample sizes" (equal for everything!)
+  nsamp_ad <- offarray( 1000, dimseq=list( S=SEXES, Y=adSAMPYEARS, A=adAGES))
+  nsamp_ju <- offarray( 1000, dimseq=list( Y=juSAMPYEARS, A=juAGES))
+
+  extract.named( autoloop( 
+      Sa=SEXES, Ya=adSAMPYEARS, Aa=adAGES, 
+      Yj=juSAMPYEARS, Aj=juAGES, {
+    Bj <- Yj - Aj;                  # birth of Our juvenile
+    Aa_at_Bj <- Aa - (Ya - Bj);     # how old was Our adult then?
+    Pr_POP_SYAYA <-
+      (Ya >= Bj) *                   # if FALSE, entire expression will give 0
+      (Aa_at_Bj >= min( adAGES)) *   # ditto
+      (Aa_at_Bj <= max( adAGES)) *   # ditto
+      fec_SA[ Sa, Aa_at_Bj |> clamp( adAGES)] /
+        totfec_SB[ Sa, Bj]  
+    E_POP_SYAYA <- Pr_POP_SYAYA *    # NB no subscripts on Pr_POP_SYAYA; 
+                                     # it only gets offarrized on exit from autoloop()
+      nsamp_ad[ Sa, Ya, Aa] * nsamp_ju[ Yj, Aj]
+    returnList( Pr_POP_SYAYA, E_POP_SYAYA)
+  }))
+  dimseq( Pr_POP_SYAYA)
+```
+
+Well, that's pretty good, but TBF the use of `clamp` is ugly. We can
+improve that (in v2.0.74+) with autoclamping via "\~". Back to the
+simpler case:
+
+```{r autoclamp}
+  Pr_POP_SYAYA <- autoloop( 
+      Sa=SEXES, Ya=adSAMPYEARS, Aa=adAGES, 
+      Yj=juSAMPYEARS, Aj=juAGES, {
+    Bj <- Yj - Aj;                  # birth of Our juvenile
+    Aa_at_Bj <- Aa - (Ya - Bj);     # how old was Our adult then?
+    Pr <-
+      (Ya >= Bj) *                   # if FALSE, entire expression will give 0
+      (Aa_at_Bj >= min( adAGES)) *   # ditto
+      (Aa_at_Bj <= max( adAGES)) *   # ditto
+      fec_SA[ Sa, ~Aa_at_Bj] /       # "~" clamps that index to allowable range
+        totfec_SB[ Sa, Bj]  
+
+    return( Pr)
+   })
+```
+
+And that's not bad, but still a bit lengthy--- perhaps cozza the two
+explict tests on `Aa_at_Bj`. The "\~" prevents OOB lookups based on
+"illegal" `Aa_at_Bj`, but we'd be happy with a zero in such cases. A
+really fancy way to do that, is to set up a zero-padded version of
+`fec_SA` so that the autoclamp will automatically zero any OOB attempts.
+That won't always be what you want[^6], but here it's quite nice coz the
+core statement becomes very succinct:
+
+```{r zero-pad-autoclamp}
+  fec_SA_zp <- autoloop( S=SEXES, A=(min(adAGES)-1):(max(adAGES)+1), 0)
+  fec_SA_zp[,adAGES] <- fec_SA
+  dimseq( fec_SA_zp)
+  dimseq( fec_SA)
+
+  Pr_POP_SYAYA <- autoloop( 
+      Sa=SEXES, Ya=adSAMPYEARS, Aa=adAGES, 
+      Yj=juSAMPYEARS, Aj=juAGES, {
+    Bj <- Yj - Aj;                  # birth of Our juvenile
+    Aa_at_Bj <- Aa - (Ya - Bj);     # how old was Our adult then?
+    Pr <-
+      (Ya >= Bj) *                   # if FALSE, entire expression will give 0
+      fec_SA_zp[ Sa, ~Aa_at_Bj] /       # "~" clamps that index to allowable range
+        totfec_SB[ Sa, Bj]  
+
+    return( Pr)
+   })
+```
+
+## Using `autobayes`
+
+I often find myself using `autoloop` for discrete Bayes calculations,
+e.g. to get $$\begin{gather*}
+\mathbb{P}\left[X|Y,Z\right]=\frac{\mathbb{P}\left[X,Y|Z\right]}{\mathbb{P}\left[Y|Z\right]}
+\end{gather*}$$ where the denominator is given by summing the numerator
+over all values of $X$. With pre-v2.0.74 `offarray`, this requires 3
+operations:
+
+1.  calculate an "unscaled" joint distribution
+    $\mathbb{P}\left[X,Y|Z\right]$ via `autoloop()`
+
+2.  use `sumover(...,'X')` to get $\mathbb{P}\left[Y,Z\right]$
+
+3.  use `autoloop()` again to divide the joint distribution by the
+    denominator, for each value of $Y$ and $Z$.
+
+This can now be done in one step just by calling `autobayes()` instead
+of `autoloop()` in step 1, specifying `RESPONSES=list( X=<xrange>)` and
+`CONDITIONERS=list(Y=<yrange>,Z=<zrange>)`. In fact, `autobayes()` is
+convenient whenever you want to normalize something to sum-to-1; see the
+Examples section of `?autoloop`.
+
+# With package `RTMB`
+
+This isn't the right place to document the `RTMB` link! There should be
+a separate demo, probably in package `offartmb`. Anyway, the general
+point is: you can write a function using `offarray` and `autoloop`, and
+with minimal care you can evaluate it either directly in R, or via
+`RTMB::MakeADFun`, which creates a C-level version of your function
+*and* its derivative. That means it will run really fast, especially in
+the context of fitting to data. Plus, `RTMB` can automatically do
+Laplace approximation to integrate out random effects, etc etc. WOW!
+
+What you need to do:
+
+- Load the package `offartmb`, after[^7] loading `offarray` and `RTMB`.
+
+- Wrap the body of your objective function in a call to `reclasso`, as
+  shown below. This will have *no effect* if you are running the
+  function directly in R, but will also make it work nicely with
+  `RTMB::MakeADFun`. It won't work if you don't.
+
+- If you want to store variables calculated inside your objective
+  function, so they are available afterwards, name them in a call to
+  `REPORTO()` somewhere (like the C macro `REPORT()` in good old TMB).
+
+- Avoid comparison-operations in your code, eg ==, \>. RTMB hates them.
+  You might be able to get away with them if they only apply to data,
+  but in that case you are better off doing them beforehand and storing
+  the results as additional data objects.
+
+- Good practice is to put the data needed by your function into a
+  separate `environment`, and attach that environment to your function.
+  The things from `REPORTO()` will be stored there too. This is a
+  general principle well worth learning about in R--- not specific to
+  `RTMB`, but perhaps particularly relevant there. The CKMR course
+  examples all do it.
+
+An example, but not one to run:
+
+```{r rtmb}
+if( FALSE){ # don't wanna run this!
+  library( offartmb)
+
+  myobjfun <- function( pars) reclasso( by=pars, { # magic line
+      Ey <- X %% pars
+      resid <- y-Ey
+      REPORTO( Ey, resid) # two at once; could separate
+    return( sum( sqr( y-Ey)))
+    })
+
+  X <- cbind( 1, 1:5) # regression
+  y <- c( 5, 3, 4, 1, 2)
+  pp0 <- 1:2
+
+  # Base-R
+  myobjfun( pp0)
+  numvbderiv( myobjfun, pp0) # numerical deriv (rough)
+
+  # RTMB
+  ooo <- RTMB::MakeADFun( myobjfun, pp0)
+  ooo$fn( pp0)
+  ooo$gr( pp0)
+  # ... and they all lived happily ever after
+}
+```
+
+As yet, I *haven't* tested/implemented the following:
+
+- several named parameter subsets (it's all just one vector at present,
+  to be unpacked inside your function--- coz that's what `optim/nlminb`
+  expects of a base-R function); [Surely I must have tested this by
+  now???]
+
+- To-do: auto-choose a factorizable blocksize when the `SUMOVER `arg is
+  used, to allow fastest `.colSums` internally etc.
+
+- there's no simulation or OSA capability yet.
+
+[^1]: Though, speed remains a *possible* concern with the `MakeADFun`
+    step in `RTMB`
+
+[^2]: This deep-copy-on-subassignment seems to be unavoidable feature of
+    R for any non-base-class object, certainly in S3 and AFAIK also in
+    S4. Base-R arrays *can* do in-place modification, but there's no
+    safe general way in your own code for your own classes, not even at
+    the C level. I doubt R-core has much interest in changing this,
+    although the word might has been bandied about for years. Packages
+    like `data.table` get round it only by defining new assignment
+    operators, which I didn't want to do for humble `offarray` objects.
+
+[^3]: Provided you stick to the rules. Are the rules documented? Not
+    really, though there are some in `?autoloop`. Just stick to them
+    anyway, is my advice.
+
+[^4]: Nor `for/while/repeat/break/next`, but `if` is more significant
+    here.
+
+[^5]: While producing this example, I have started to think that the
+    error message should include *all* available variables (including
+    ones just calculated), not just the indices, because that might
+    clarify things a lot! Next version\...
+
+[^6]: EG in real popdyn, you might not want to zero-pad beyond the max
+    age; it might be a plus-group where you are fine just to use the
+    same value for any greater age.
+
+[^7]: I have added a hack that tries to make the loading-order
+    irrelevant. Tries.

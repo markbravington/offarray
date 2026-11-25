@@ -6,9 +6,9 @@ Maintainer: Mark V. Bravington <markb2@summerinsouth.net>
 Depends: R (>= 4.3)
 Imports: utils, Rcpp (>= 0.12.11), mvbutils (>= 2.9)
 LinkingTo: Rcpp
-Suggests: knitr
-CommentedOutVignetteBuilder: knitr
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
 ByteCompile: yes
 License: GPL (>=2)
-Version: 2.0.71
+Version: 2.1.2
 Collate: offarray.R Cloaders_offarray.R

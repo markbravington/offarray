@@ -335,6 +335,49 @@ function (x, ...) {
 }
 
 
+"autobayes" <-
+function( 
+  expr, 
+  RESPONSES= list(),
+  CONDITIONERS= list(), 
+  SUMOVER= list(),
+  offarray_wanted= TRUE,
+  autoclamping= NA,  
+  .BLOCKSIZE= formals(autoloop)$.BLOCKSIZE,
+  .REPORTSEC= formals(autoloop)$.REPORTSEC
+){
+## Standard Bayes' theorem, using only 1 autoloop() instead of...
+# 2X autoloop() and a sumover() if you do it manually
+# Succincter, and slightly efficienter
+
+  mc <- match.call()
+  mc$indices <- c( RESPONSES, CONDITIONERS)
+  mc$RESPONSES <- mc$CONDITIONERS <- NULL
+  mc[[1]] <- quote( autoloop)
+  joint <- eval.parent( mc)
+
+  dimr <- prod( lengths( RESPONSES))
+  dimc <- prod( lengths( CONDITIONERS))
+  
+  # Unlike 'autoloop', cannot return a single array of mode 'list': 
+  # answer must be numeric (hence no 'single_object' arg). So:
+  if( joint %is.a% 'list'){ 
+    # Normally you'd just do 1 Bayes calc at a time
+    # but you _could_ do several with the same indices
+    joint <- FOR( joint, {
+      denom <- .colSums( ., m=dimr, n=dimc)
+      .[] <- .[] * rep( 1/denom, each=dimr)
+    })
+  } else {
+    denom <- .colSums( joint, m=dimr, n=dimc)
+    # Next line avoids messing with attributes
+    joint[] <- joint[] * rep( 1/denom, each=dimr)
+  }
+  
+return( joint)
+}
+
+
 "autoloop" <-
 function( 
   expr, 
@@ -343,6 +386,7 @@ function(
   SUMOVER= list(),
   single_object= NA,
   offarray_wanted= TRUE,
+  autoclamping= NA,
   .BLOCKSIZE= 3e3, 
   .REPORTSEC= 0
 ){
@@ -352,11 +396,19 @@ function(
   allargs <- c( dots, SUMOVER)
   nargls <- names( allargs)
   
-  boring_checks_autoloop() # I ain't gonna lie...
+  boring_checks_autoloop() # ain't gonna lie...
   
   subex <- substitute( expr)
+  if( is.na( autoclamping)){
+    autoclamping <- '~' %in% all.names( subex, unique=TRUE)
+  }
+  
+  sneakysub <- if( autoclamping) 
+      quote( offarray:::supersneaky_subset) 
+    else
+      quote( offarray:::sneaky_subset) 
   subex1 <- do.call( 'substitute', list( subex, 
-      list( '['=quote( offarray:::sneaky_subset))))
+      list( '['=sneakysub)))
 
   ntodo <- prod( lengths( allargs))
   nonsumover_block_size <- prod( lengths( dots))
@@ -1277,7 +1329,8 @@ function( expr, by, ...){
 #  NextMethod( 'reclasso', by[[1]]) # doesn't work
 
 # This works, tho mebbe it should specify envir
-  getS3method( 'reclasso', class( by[[1]]))( by=by, expr=substitute( expr), evalfr=parent.frame())
+  getS3method( 'reclasso', class( by[[1]]))( by=by, expr=substitute( expr), 
+      evalfr=parent.frame())
 }
 
 
@@ -1878,6 +1931,85 @@ stopifnot( all( mm>0 & mm<=ndim))
   # ?drop-stuff goes here?
 
 return( y)
+}
+
+
+"supersneaky_subset" <-
+function( x, ...) {
+## Only used inside autoloop
+  # Now with autoclamping, for indices starting with "~"
+  # mc <- match.call( expand.dots=FALSE)
+  # sigh... R is stuffing around making pairlists where it didn't use to
+  # so...
+
+  mc <- mc2 <- match.call( expand.dots=TRUE)
+  if( nargs()==2L) {
+stopifnot( 
+      is.null( dim( x)) || 
+      length( dim( x))==1L
+    )  
+    mc[[1L]] <- as.name( '[')
+    
+    # Add clamp code if formula
+    if( (mc[[3L]] %is.a% 'call') && (mc[[3L]][[1L]]=='~')){
+      ex1 <- dimrange( x)
+      # ~(x+1) -> twiddleclamp( x+1, lo, hi)
+      # Do not change NA values
+      twiddleclamp <- substitute( function( x){ x[x<lo] <- lo; x[x>hi] <- hi; x}, 
+          list( lo=ex1[1], hi=ex1[2]))
+      mc[[3L]][[1L]] <- twiddleclamp # do.call( 'substitute', list( mc[[1L]][[2L]], list( '~'=twiddleclamp)))
+    }
+    
+    if( x %is.an% 'offarray') {
+      # names( mc)[2L] <- 'NOOFF' presumably no better than...
+      mc$nooff <- TRUE
+      
+      # Will give offarray, but we want pure vector
+      # as.vector() might damage other class things
+      y <- eval.parent( mc)
+      dimnames( y) <- NULL
+      dim( y) <- NULL
+      attr( y, 'offset') <- NULL
+      oldClass( y) <- oldClass( y) %except% 'offarray'
+return( y)
+    } else {
+return( eval.parent( mc))
+   }
+  }
+
+  mc2 <- mc2[-2L]
+
+  # Add clamp code if any "formula" args
+  # My guess is that checking once via all.names() is faster
+  # but that's a guess
+  if( '~' %in% all.names( mc2, unique=TRUE)){
+    for( i in 2:length( mc2)){ # length>=2 guaranteed
+      mc2i <- mc2[[i]]
+      if( ( mc2i %is.a% 'call') && identical( mc2i[[1L]], as.name('~'))){ 
+        ex1 <- dimrange( x, i-1)
+        # ~(x+1) --> twiddleclamp( x+1)
+        # Do not change NA values
+        twiddleclamp <- substitute( function( x){ x[x<lo] <- lo; x[x>hi] <- hi; x}, 
+            list( lo=ex1[1], hi=ex1[2]))
+        mc2i[[1L]] <- twiddleclamp
+        mc2[[i]] <- mc2i
+      }
+    }
+  }
+  
+  if( x %is.an% 'offarray') {
+    mc2[[1L]] <- quote( list)
+    # ... used to have quote( cbind), but that will coerce to character
+    # ... whereas the normal '[.offarray' will unpack list correctly
+    # ... MATSUB=list() option did not exist when this was first written
+
+    callo <- call( '[', mc$x, MATSUB=mc2)
+  } else {
+    mc2[[ 1L]] <- quote( cbind)
+    callo <- call( '[', mc$x, mc2)
+  }
+
+  eval.parent( callo)
 }
 
 
