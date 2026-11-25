@@ -10,5 +10,5 @@ Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 ByteCompile: yes
 License: GPL (>=2)
-Version: 2.1.2
+Version: 2.1.6
 Collate: offarray.R Cloaders_offarray.R
